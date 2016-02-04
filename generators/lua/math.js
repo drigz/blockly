@@ -32,30 +32,26 @@ goog.require('Blockly.Lua');
 Blockly.Lua['math_number'] = function(block) {
   // Numeric value.
   var code = parseFloat(block.getFieldValue('NUM'));
-  return [code, Blockly.Lua.ORDER_ATOMIC];
+  var order = code < 0 ? Blockly.Lua.ORDER_UNARY :
+              Blockly.Lua.ORDER_ATOMIC;
+  return [code, order];
 };
 
 Blockly.Lua['math_arithmetic'] = function(block) {
   // Basic arithmetic operators, and power.
   var OPERATORS = {
-    'ADD': [' + ', Blockly.Lua.ORDER_ADDITION],
-    'MINUS': [' - ', Blockly.Lua.ORDER_SUBTRACTION],
-    'MULTIPLY': [' * ', Blockly.Lua.ORDER_MULTIPLICATION],
-    'DIVIDE': [' / ', Blockly.Lua.ORDER_DIVISION],
-    'POWER': [null, Blockly.Lua.ORDER_COMMA]  // Handle power separately.
+    ADD: [' + ', Blockly.Lua.ORDER_ADDITIVE],
+    MINUS: [' - ', Blockly.Lua.ORDER_ADDITIVE],
+    MULTIPLY: [' * ', Blockly.Lua.ORDER_MULTIPLICATIVE],
+    DIVIDE: [' / ', Blockly.Lua.ORDER_MULTIPLICATIVE],
+    POWER: [' ^ ', Blockly.Lua.ORDER_EXPONENTIATION]
   };
   var tuple = OPERATORS[block.getFieldValue('OP')];
   var operator = tuple[0];
   var order = tuple[1];
   var argument0 = Blockly.Lua.valueToCode(block, 'A', order) || '0';
   var argument1 = Blockly.Lua.valueToCode(block, 'B', order) || '0';
-  var code;
-  // Power in Lua requires a special case since it has no operator.
-  if (!operator) {
-    code = 'Math.pow(' + argument0 + ', ' + argument1 + ')';
-    return [code, Blockly.Lua.ORDER_FUNCTION_CALL];
-  }
-  code = argument0 + operator + argument1;
+  var code = argument0 + operator + argument1;
   return [code, order];
 };
 
@@ -67,92 +63,78 @@ Blockly.Lua['math_single'] = function(block) {
   if (operator == 'NEG') {
     // Negation is a special case given its different operator precedence.
     arg = Blockly.Lua.valueToCode(block, 'NUM',
-        Blockly.Lua.ORDER_UNARY_NEGATION) || '0';
-    if (arg[0] == '-') {
-      // --3 is not legal in JS.
-      arg = ' ' + arg;
-    }
-    code = '-' + arg;
-    return [code, Blockly.Lua.ORDER_UNARY_NEGATION];
+        Blockly.Lua.ORDER_UNARY) || '0';
+    return ['-' + arg, Blockly.Lua.ORDER_UNARY];
   }
   if (operator == 'SIN' || operator == 'COS' || operator == 'TAN') {
     arg = Blockly.Lua.valueToCode(block, 'NUM',
-        Blockly.Lua.ORDER_DIVISION) || '0';
+        Blockly.Lua.ORDER_MULTIPLICATIVE) || '0';
   } else {
     arg = Blockly.Lua.valueToCode(block, 'NUM',
         Blockly.Lua.ORDER_NONE) || '0';
   }
-  // First, handle cases which generate values that don't need parentheses
-  // wrapping the code.
   switch (operator) {
     case 'ABS':
-      code = 'Math.abs(' + arg + ')';
+      code = 'math.abs(' + arg + ')';
       break;
     case 'ROOT':
-      code = 'Math.sqrt(' + arg + ')';
+      code = 'math.sqrt(' + arg + ')';
       break;
     case 'LN':
-      code = 'Math.log(' + arg + ')';
+      code = 'math.log(' + arg + ')';
+      break;
+    case 'LOG10':
+      code = 'math.log10(' + arg + ')';
       break;
     case 'EXP':
-      code = 'Math.exp(' + arg + ')';
+      code = 'math.exp(' + arg + ')';
       break;
     case 'POW10':
-      code = 'Math.pow(10,' + arg + ')';
+      code = 'math.pow(10,' + arg + ')';
       break;
     case 'ROUND':
-      code = 'Math.round(' + arg + ')';
+      // This rounds up.  Blockly does not specify rounding direction.
+      code = 'math.floor(' + arg + ' + .5)';
       break;
     case 'ROUNDUP':
-      code = 'Math.ceil(' + arg + ')';
+      code = 'math.ceil(' + arg + ')';
       break;
     case 'ROUNDDOWN':
-      code = 'Math.floor(' + arg + ')';
+      code = 'math.floor(' + arg + ')';
       break;
     case 'SIN':
-      code = 'Math.sin(' + arg + ' / 180 * Math.PI)';
+      code = 'math.sin(math.rad(' + arg + '))';
       break;
     case 'COS':
-      code = 'Math.cos(' + arg + ' / 180 * Math.PI)';
+      code = 'math.cos(math.rad(' + arg + '))';
       break;
     case 'TAN':
-      code = 'Math.tan(' + arg + ' / 180 * Math.PI)';
-      break;
-  }
-  if (code) {
-    return [code, Blockly.Lua.ORDER_FUNCTION_CALL];
-  }
-  // Second, handle cases which generate values that may need parentheses
-  // wrapping the code.
-  switch (operator) {
-    case 'LOG10':
-      code = 'Math.log(' + arg + ') / Math.log(10)';
+      code = 'math.tan(math.rad(' + arg + '))';
       break;
     case 'ASIN':
-      code = 'Math.asin(' + arg + ') / Math.PI * 180';
+      code = 'math.deg(math.asin(' + arg + '))';
       break;
     case 'ACOS':
-      code = 'Math.acos(' + arg + ') / Math.PI * 180';
+      code = 'math.deg(math.acos(' + arg + '))';
       break;
     case 'ATAN':
-      code = 'Math.atan(' + arg + ') / Math.PI * 180';
+      code = 'math.deg(math.atan(' + arg + '))';
       break;
     default:
       throw 'Unknown math operator: ' + operator;
   }
-  return [code, Blockly.Lua.ORDER_DIVISION];
+  return [code, Blockly.Lua.ORDER_HIGH];
 };
 
 Blockly.Lua['math_constant'] = function(block) {
   // Constants: PI, E, the Golden Ratio, sqrt(2), 1/sqrt(2), INFINITY.
   var CONSTANTS = {
-    'PI': ['Math.PI', Blockly.Lua.ORDER_MEMBER],
-    'E': ['Math.E', Blockly.Lua.ORDER_MEMBER],
-    'GOLDEN_RATIO':
-        ['(1 + Math.sqrt(5)) / 2', Blockly.Lua.ORDER_DIVISION],
-    'SQRT2': ['Math.SQRT2', Blockly.Lua.ORDER_MEMBER],
-    'SQRT1_2': ['Math.SQRT1_2', Blockly.Lua.ORDER_MEMBER],
-    'INFINITY': ['Infinity', Blockly.Lua.ORDER_ATOMIC]
+    PI: ['math.pi', Blockly.Lua.ORDER_HIGH],
+    E: ['math.exp(1)', Blockly.Lua.ORDER_HIGH],
+    GOLDEN_RATIO: ['(1 + math.sqrt(5)) / 2', Blockly.Lua.ORDER_MULTIPLICATIVE],
+    SQRT2: ['math.sqrt(2)', Blockly.Lua.ORDER_HIGH],
+    SQRT1_2: ['math.sqrt(1 / 2)', Blockly.Lua.ORDER_HIGH],
+    INFINITY: ['math.huge', Blockly.Lua.ORDER_HIGH]
   };
   return CONSTANTS[block.getFieldValue('CONSTANT')];
 };
@@ -161,34 +143,33 @@ Blockly.Lua['math_number_property'] = function(block) {
   // Check if a number is even, odd, prime, whole, positive, or negative
   // or if it is divisible by certain number. Returns true or false.
   var number_to_check = Blockly.Lua.valueToCode(block, 'NUMBER_TO_CHECK',
-      Blockly.Lua.ORDER_MODULUS) || '0';
+      Blockly.Lua.ORDER_MULTIPLICATIVE) || '0';
   var dropdown_property = block.getFieldValue('PROPERTY');
   var code;
   if (dropdown_property == 'PRIME') {
     // Prime is a special case as it is not a one-liner test.
     var functionName = Blockly.Lua.provideFunction_(
         'math_isPrime',
-        [ 'function ' + Blockly.Lua.FUNCTION_NAME_PLACEHOLDER_ + '(n) {',
-          '  // https://en.wikipedia.org/wiki/Primality_test#Naive_methods',
-          '  if (n == 2 || n == 3) {',
-          '    return true;',
-          '  }',
-          '  // False if n is NaN, negative, is 1, or not whole.',
-          '  // And false if n is divisible by 2 or 3.',
-          '  if (isNaN(n) || n <= 1 || n % 1 != 0 || n % 2 == 0 ||' +
-            ' n % 3 == 0) {',
-          '    return false;',
-          '  }',
-          '  // Check all the numbers of form 6k +/- 1, up to sqrt(n).',
-          '  for (var x = 6; x <= Math.sqrt(n) + 1; x += 6) {',
-          '    if (n % (x - 1) == 0 || n % (x + 1) == 0) {',
-          '      return false;',
-          '    }',
-          '  }',
-          '  return true;',
-          '}']);
+        [ 'function ' + Blockly.Lua.FUNCTION_NAME_PLACEHOLDER_ + '(n)',
+          '  -- https://en.wikipedia.org/wiki/Primality_test#Naive_methods',
+          '  if n == 2 or n == 3 then',
+          '    return true',
+          '  end',
+          '  -- False if n is NaN, negative, is 1, or not whole.',
+          '  -- And false if n is divisible by 2 or 3.',
+          '  if not(n > 1) or n % 1 ~= 0 or n % 2 == 0 or n % 3 == 0 then',
+          '    return false',
+          '  end',
+          '  -- Check all the numbers of form 6k +/- 1, up to sqrt(n).',
+          '  for x = 6, math.sqrt(n) + 1.5, 6 do',
+          '    if n % (x - 1) == 0 or n % (x + 1) == 0 then',
+          '      return false',
+          '    end',
+          '  end',
+          '  return true',
+          'end'])
     code = functionName + '(' + number_to_check + ')';
-    return [code, Blockly.Lua.ORDER_FUNCTION_CALL];
+    return [code, Blockly.Lua.ORDER_HIGH];
   }
   switch (dropdown_property) {
     case 'EVEN':
@@ -208,21 +189,28 @@ Blockly.Lua['math_number_property'] = function(block) {
       break;
     case 'DIVISIBLE_BY':
       var divisor = Blockly.Lua.valueToCode(block, 'DIVISOR',
-          Blockly.Lua.ORDER_MODULUS) || '0';
+          Blockly.Lua.ORDER_MULTIPLICATIVE);
+      // If 'divisor' is some code that evals to 0, Lua will produce a nan.
+      // Let's produce nil if we can determine this at compile-time.
+      if (!divisor || divisor == '0') {
+        return ['nil', Blockly.Lua.ORDER_ATOMIC];
+      }
+      // The normal trick to implement ?: with and/or doesn't work here:
+      //   divisor == 0 and nil or number_to_check % divisor == 0
+      // because nil is false, so allow a runtime failure. :-(
       code = number_to_check + ' % ' + divisor + ' == 0';
       break;
   }
-  return [code, Blockly.Lua.ORDER_EQUALITY];
+  return [code, Blockly.Lua.ORDER_RELATIONAL];
 };
 
 Blockly.Lua['math_change'] = function(block) {
   // Add to a variable in place.
   var argument0 = Blockly.Lua.valueToCode(block, 'DELTA',
-      Blockly.Lua.ORDER_ADDITION) || '0';
+      Blockly.Lua.ORDER_ADDITIVE) || '0';
   var varName = Blockly.Lua.variableDB_.getName(
       block.getFieldValue('VAR'), Blockly.Variables.NAME_TYPE);
-  return varName + ' = (typeof ' + varName + ' == \'number\' ? ' + varName +
-      ' : 0) + ' + argument0 + ';\n';
+  return varName + ' = ' + varName + ' + ' + argument0 + '\n';
 };
 
 // Rounding functions have a single operand.
@@ -233,179 +221,205 @@ Blockly.Lua['math_trig'] = Blockly.Lua['math_single'];
 Blockly.Lua['math_on_list'] = function(block) {
   // Math functions for lists.
   var func = block.getFieldValue('OP');
-  var list, code;
+  var list = Blockly.Lua.valueToCode(block, 'LIST',
+      Blockly.Lua.ORDER_NONE) || '{}';
+  var functionName;
+
+  // Functions needed in more than one case.
+  function provideSum() {
+    return Blockly.Lua.provideFunction_(
+        'math_sum',
+        ['function ' + Blockly.Lua.FUNCTION_NAME_PLACEHOLDER_ + '(t)',
+         '  local result = 0',
+         '  for _, v in ipairs(t) do',
+         '    result = result + v',
+         '  end',
+         '  return result',
+         'end']);
+  }
+
   switch (func) {
     case 'SUM':
-      list = Blockly.Lua.valueToCode(block, 'LIST',
-          Blockly.Lua.ORDER_MEMBER) || '[]';
-      code = list + '.reduce(function(x, y) {return x + y;})';
+      functionName = provideSum();
       break;
+
     case 'MIN':
-      list = Blockly.Lua.valueToCode(block, 'LIST',
-          Blockly.Lua.ORDER_COMMA) || '[]';
-      code = 'Math.min.apply(null, ' + list + ')';
+      // Returns 0 for the empty list.
+      functionName = Blockly.Lua.provideFunction_(
+          'math_min',
+          ['function ' + Blockly.Lua.FUNCTION_NAME_PLACEHOLDER_ + '(t)',
+           '  if #t == 0 then',
+           '    return 0',
+           '  end',
+           '  local result = math.huge',
+           '  for _, v in ipairs(t) do',
+           '    if v < result then',
+           '      result = v',
+           '    end',
+           '  end',
+           '  return result',
+           'end'])
       break;
-    case 'MAX':
-      list = Blockly.Lua.valueToCode(block, 'LIST',
-          Blockly.Lua.ORDER_COMMA) || '[]';
-      code = 'Math.max.apply(null, ' + list + ')';
-      break;
+
     case 'AVERAGE':
-      // math_median([null,null,1,3]) == 2.0.
-      var functionName = Blockly.Lua.provideFunction_(
-          'math_mean',
-          [ 'function ' + Blockly.Lua.FUNCTION_NAME_PLACEHOLDER_ +
-              '(myList) {',
-            '  return myList.reduce(function(x, y) {return x + y;}) / ' +
-                  'myList.length;',
-            '}']);
-      list = Blockly.Lua.valueToCode(block, 'LIST',
-          Blockly.Lua.ORDER_NONE) || '[]';
-      code = functionName + '(' + list + ')';
+      // Returns 0 for the empty list.
+      functionName = Blockly.Lua.provideFunction_(
+          'math_average',
+          ['function ' + Blockly.Lua.FUNCTION_NAME_PLACEHOLDER_ + '(t)',
+           '  if #t == 0 then',
+           '    return 0',
+           '  end',
+           '  return ' + provideSum() + '(t) / #t',
+           'end'])
       break;
+
+    case 'MAX':
+      // Returns 0 for the empty list.
+      functionName = Blockly.Lua.provideFunction_(
+          'math_max',
+          ['function ' + Blockly.Lua.FUNCTION_NAME_PLACEHOLDER_ + '(t)',
+           '  if #t == 0 then',
+           '    return 0',
+           '  end',
+           '  local result = -math.huge',
+           '  for _, v in ipairs(t) do',
+           '    if v > result then',
+           '      result = v',
+           '    end',
+           '  end',
+           '  return result',
+           'end'])
+      break;
+
     case 'MEDIAN':
-      // math_median([null,null,1,3]) == 2.0.
-      var functionName = Blockly.Lua.provideFunction_(
+      functionName = Blockly.Lua.provideFunction_(
           'math_median',
-          [ 'function ' + Blockly.Lua.FUNCTION_NAME_PLACEHOLDER_ +
-              '(myList) {',
-            '  var localList = myList.filter(function (x) ' +
-              '{return typeof x == \'number\';});',
-            '  if (!localList.length) return null;',
-            '  localList.sort(function(a, b) {return b - a;});',
-            '  if (localList.length % 2 == 0) {',
-            '    return (localList[localList.length / 2 - 1] + ' +
-              'localList[localList.length / 2]) / 2;',
-            '  } else {',
-            '    return localList[(localList.length - 1) / 2];',
-            '  }',
-            '}']);
-      list = Blockly.Lua.valueToCode(block, 'LIST',
-          Blockly.Lua.ORDER_NONE) || '[]';
-      code = functionName + '(' + list + ')';
+          // This operation excludes non-numbers.
+          ['function ' + Blockly.Lua.FUNCTION_NAME_PLACEHOLDER_ + '(t)',
+           '  -- Source: http://lua-users.org/wiki/SimpleStats',
+           '  if #t == 0 then',
+           '    return 0',
+           '  end',
+           '  local temp={}',
+           '  for _, v in ipairs(t) do',
+           '    if type(v) == "number" then',
+           '      table.insert(temp, v)',
+           '    end',
+           '  end',
+           '  table.sort(temp)',
+           '  if #temp % 2 == 0 then',
+           '    return (temp[#temp/2] + temp[(#temp/2)+1]) / 2',
+           '  else',
+           '    return temp[math.ceil(#temp/2)]',
+           '  end',
+           'end'])
       break;
+
     case 'MODE':
-      // As a list of numbers can contain more than one mode,
-      // the returned result is provided as an array.
-      // Mode of [3, 'x', 'x', 1, 1, 2, '3'] -> ['x', 1].
-      var functionName = Blockly.Lua.provideFunction_(
+      functionName = Blockly.Lua.provideFunction_(
           'math_modes',
-          [ 'function ' + Blockly.Lua.FUNCTION_NAME_PLACEHOLDER_ +
-              '(values) {',
-            '  var modes = [];',
-            '  var counts = [];',
-            '  var maxCount = 0;',
-            '  for (var i = 0; i < values.length; i++) {',
-            '    var value = values[i];',
-            '    var found = false;',
-            '    var thisCount;',
-            '    for (var j = 0; j < counts.length; j++) {',
-            '      if (counts[j][0] === value) {',
-            '        thisCount = ++counts[j][1];',
-            '        found = true;',
-            '        break;',
-            '      }',
-            '    }',
-            '    if (!found) {',
-            '      counts.push([value, 1]);',
-            '      thisCount = 1;',
-            '    }',
-            '    maxCount = Math.max(thisCount, maxCount);',
-            '  }',
-            '  for (var j = 0; j < counts.length; j++) {',
-            '    if (counts[j][1] == maxCount) {',
-            '        modes.push(counts[j][0]);',
-            '    }',
-            '  }',
-            '  return modes;',
-            '}']);
-      list = Blockly.Lua.valueToCode(block, 'LIST',
-          Blockly.Lua.ORDER_NONE) || '[]';
-      code = functionName + '(' + list + ')';
+          // As a list of numbers can contain more than one mode,
+          // the returned result is provided as an array.
+          // The Lua version includes non-numbers.
+          ['function ' + Blockly.Lua.FUNCTION_NAME_PLACEHOLDER_ + '(t)',
+           '  -- Source: http://lua-users.org/wiki/SimpleStats',
+           '  local counts={}',
+           '  for _, v in ipairs(t) do',
+           '    if counts[v] == nil then',
+           '      counts[v] = 1',
+           '    else',
+           '      counts[v] = counts[v] + 1',
+           '    end',
+           '  end',
+           '  local biggestCount = 0',
+           '  for _, v  in pairs(counts) do',
+           '    if v > biggestCount then',
+           '      biggestCount = v',
+           '    end',
+           '  end',
+           '  local temp={}',
+           '  for k, v in pairs(counts) do',
+           '    if v == biggestCount then',
+           '      table.insert(temp, k)',
+           '    end',
+           '  end',
+           '  return temp',
+           'end']);
       break;
+
     case 'STD_DEV':
-      var functionName = Blockly.Lua.provideFunction_(
+      functionName = Blockly.Lua.provideFunction_(
           'math_standard_deviation',
-          [ 'function ' + Blockly.Lua.FUNCTION_NAME_PLACEHOLDER_ +
-              '(numbers) {',
-            '  var n = numbers.length;',
-            '  if (!n) return null;',
-            '  var mean = numbers.reduce(function(x, y) {return x + y;}) / n;',
-            '  var variance = 0;',
-            '  for (var j = 0; j < n; j++) {',
-            '    variance += Math.pow(numbers[j] - mean, 2);',
-            '  }',
-            '  variance = variance / n;',
-            '  return Math.sqrt(variance);',
-            '}']);
-      list = Blockly.Lua.valueToCode(block, 'LIST',
-          Blockly.Lua.ORDER_NONE) || '[]';
-      code = functionName + '(' + list + ')';
+          ['function ' + Blockly.Lua.FUNCTION_NAME_PLACEHOLDER_ + '(t)',
+           '  local m',
+           '  local vm',
+           '  local total = 0',
+           '  local count = 0',
+           '  local result',
+           '  m = #t == 0 and 0 or ' + provideSum() + '(t) / #t',
+           '  for _, v in ipairs(t) do',
+           "    if type(v) == 'number' then",
+           '      vm = v - m',
+           '      total = total + (vm * vm)',
+           '      count = count + 1',
+           '    end',
+           '  end',
+           '  result = math.sqrt(total / (count-1))',
+           '  return result',
+           'end'])
       break;
+
     case 'RANDOM':
-      var functionName = Blockly.Lua.provideFunction_(
+      functionName = Blockly.Lua.provideFunction_(
           'math_random_list',
-          [ 'function ' + Blockly.Lua.FUNCTION_NAME_PLACEHOLDER_ +
-              '(list) {',
-            '  var x = Math.floor(Math.random() * list.length);',
-            '  return list[x];',
-            '}']);
-      list = Blockly.Lua.valueToCode(block, 'LIST',
-          Blockly.Lua.ORDER_NONE) || '[]';
-      code = functionName + '(' + list + ')';
+          ['function ' + Blockly.Lua.FUNCTION_NAME_PLACEHOLDER_ + '(t)',
+           '  if #t == 0 then',
+           '    return nil',
+           '  end',
+           '  return t[math.random(#t)]',
+           'end'])
       break;
+
     default:
       throw 'Unknown operator: ' + func;
   }
-  return [code, Blockly.Lua.ORDER_FUNCTION_CALL];
+  return [functionName + '(' + list + ')', Blockly.Lua.ORDER_HIGH];
 };
 
 Blockly.Lua['math_modulo'] = function(block) {
   // Remainder computation.
   var argument0 = Blockly.Lua.valueToCode(block, 'DIVIDEND',
-      Blockly.Lua.ORDER_MODULUS) || '0';
+      Blockly.Lua.ORDER_MULTIPLICATIVE) || '0';
   var argument1 = Blockly.Lua.valueToCode(block, 'DIVISOR',
-      Blockly.Lua.ORDER_MODULUS) || '0';
+      Blockly.Lua.ORDER_MULTIPLICATIVE) || '0';
   var code = argument0 + ' % ' + argument1;
-  return [code, Blockly.Lua.ORDER_MODULUS];
+  return [code, Blockly.Lua.ORDER_MULTIPLICATIVE];
 };
 
 Blockly.Lua['math_constrain'] = function(block) {
   // Constrain a number between two limits.
   var argument0 = Blockly.Lua.valueToCode(block, 'VALUE',
-      Blockly.Lua.ORDER_COMMA) || '0';
+      Blockly.Lua.ORDER_NONE) || '0';
   var argument1 = Blockly.Lua.valueToCode(block, 'LOW',
-      Blockly.Lua.ORDER_COMMA) || '0';
+      Blockly.Lua.ORDER_NONE) || '-math.huge';
   var argument2 = Blockly.Lua.valueToCode(block, 'HIGH',
-      Blockly.Lua.ORDER_COMMA) || 'Infinity';
-  var code = 'Math.min(Math.max(' + argument0 + ', ' + argument1 + '), ' +
+      Blockly.Lua.ORDER_NONE) || 'math.huge';
+  var code = 'math.min(math.max(' + argument0 + ', ' + argument1 + '), ' +
       argument2 + ')';
-  return [code, Blockly.Lua.ORDER_FUNCTION_CALL];
+  return [code, Blockly.Lua.ORDER_HIGH];
 };
 
 Blockly.Lua['math_random_int'] = function(block) {
   // Random integer between [X] and [Y].
   var argument0 = Blockly.Lua.valueToCode(block, 'FROM',
-      Blockly.Lua.ORDER_COMMA) || '0';
+      Blockly.Lua.ORDER_NONE) || '0';
   var argument1 = Blockly.Lua.valueToCode(block, 'TO',
-      Blockly.Lua.ORDER_COMMA) || '0';
-  var functionName = Blockly.Lua.provideFunction_(
-      'math_random_int',
-      [ 'function ' + Blockly.Lua.FUNCTION_NAME_PLACEHOLDER_ +
-          '(a, b) {',
-        '  if (a > b) {',
-        '    // Swap a and b to ensure a is smaller.',
-        '    var c = a;',
-        '    a = b;',
-        '    b = c;',
-        '  }',
-        '  return Math.floor(Math.random() * (b - a + 1) + a);',
-        '}']);
-  var code = functionName + '(' + argument0 + ', ' + argument1 + ')';
-  return [code, Blockly.Lua.ORDER_FUNCTION_CALL];
+      Blockly.Lua.ORDER_NONE) || '0';
+  var code = 'math.random(' + argument0 + ', ' + argument1 + ')';
+  return [code, Blockly.Lua.ORDER_HIGH];
 };
 
 Blockly.Lua['math_random_float'] = function(block) {
   // Random fraction between 0 and 1.
-  return ['Math.random()', Blockly.Lua.ORDER_FUNCTION_CALL];
+  return ['math.random()', Blockly.Lua.ORDER_HIGH];
 };

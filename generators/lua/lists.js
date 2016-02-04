@@ -20,7 +20,7 @@
 
 /**
  * @fileoverview Generating Lua for list blocks.
- * @author fraser@google.com (Neil Fraser)
+ * @author rodrigoq@google.com (Rodrigo Queiro)
  */
 'use strict';
 
@@ -31,7 +31,8 @@ goog.require('Blockly.Lua');
 
 Blockly.Lua['lists_create_empty'] = function(block) {
   // Create an empty list.
-  return ['[]', Blockly.Lua.ORDER_ATOMIC];
+  // List literals must be parenthesized before indexing into.
+  return ['({})', Blockly.Lua.ORDER_ATOMIC];
 };
 
 Blockly.Lua['lists_create_with'] = function(block) {
@@ -39,286 +40,303 @@ Blockly.Lua['lists_create_with'] = function(block) {
   var code = new Array(block.itemCount_);
   for (var n = 0; n < block.itemCount_; n++) {
     code[n] = Blockly.Lua.valueToCode(block, 'ADD' + n,
-        Blockly.Lua.ORDER_COMMA) || 'null';
+        Blockly.Lua.ORDER_NONE) || 'None';
   }
-  code = '[' + code.join(', ') + ']';
+  code = '({' + code.join(', ') + '})';
   return [code, Blockly.Lua.ORDER_ATOMIC];
 };
 
 Blockly.Lua['lists_repeat'] = function(block) {
   // Create a list with one element repeated.
   var functionName = Blockly.Lua.provideFunction_(
-      'lists_repeat',
-      [ 'function ' + Blockly.Lua.FUNCTION_NAME_PLACEHOLDER_ +
-          '(value, n) {',
-        '  var array = [];',
-        '  for (var i = 0; i < n; i++) {',
-        '    array[i] = value;',
-        '  }',
-        '  return array;',
-        '}']);
+      'create_list_repeated',
+      ['function ' + Blockly.Lua.FUNCTION_NAME_PLACEHOLDER_ + '(item, count)',
+       '  local t = {}',
+       '  for i = 1, count do',
+       '    table.insert(t, item)',
+       '  end',
+       '  return t',
+       'end']);
   var argument0 = Blockly.Lua.valueToCode(block, 'ITEM',
-      Blockly.Lua.ORDER_COMMA) || 'null';
+      Blockly.Lua.ORDER_NONE) || 'None';
   var argument1 = Blockly.Lua.valueToCode(block, 'NUM',
-      Blockly.Lua.ORDER_COMMA) || '0';
+      Blockly.Lua.ORDER_NONE) || '0';
   var code = functionName + '(' + argument0 + ', ' + argument1 + ')';
-  return [code, Blockly.Lua.ORDER_FUNCTION_CALL];
+  return [code, Blockly.Lua.ORDER_HIGH];
 };
 
 Blockly.Lua['lists_length'] = function(block) {
   // String or array length.
   var argument0 = Blockly.Lua.valueToCode(block, 'VALUE',
-      Blockly.Lua.ORDER_FUNCTION_CALL) || '[]';
-  return [argument0 + '.length', Blockly.Lua.ORDER_MEMBER];
+      Blockly.Lua.ORDER_HIGH) || '({})';
+  return ['#' + argument0, Blockly.Lua.ORDER_HIGH];
 };
 
 Blockly.Lua['lists_isEmpty'] = function(block) {
   // Is the string null or array empty?
   var argument0 = Blockly.Lua.valueToCode(block, 'VALUE',
-      Blockly.Lua.ORDER_MEMBER) || '[]';
-  return ['!' + argument0 + '.length', Blockly.Lua.ORDER_LOGICAL_NOT];
+      Blockly.Lua.ORDER_HIGH) || '({})';
+  var code = '#' + argument0 + ' == 0';
+  return [code, Blockly.Lua.ORDER_RELATIONAL];
 };
 
 Blockly.Lua['lists_indexOf'] = function(block) {
   // Find an item in the list.
-  var operator = block.getFieldValue('END') == 'FIRST' ?
-      'indexOf' : 'lastIndexOf';
   var argument0 = Blockly.Lua.valueToCode(block, 'FIND',
       Blockly.Lua.ORDER_NONE) || '\'\'';
   var argument1 = Blockly.Lua.valueToCode(block, 'VALUE',
-      Blockly.Lua.ORDER_MEMBER) || '[]';
-  var code = argument1 + '.' + operator + '(' + argument0 + ') + 1';
-  return [code, Blockly.Lua.ORDER_MEMBER];
+      Blockly.Lua.ORDER_NONE) || '({})';
+  var functionName;
+  if (block.getTitleValue('END') == 'FIRST') {
+    functionName = Blockly.Lua.provideFunction_(
+        'first_index',
+        ['function ' + Blockly.Lua.FUNCTION_NAME_PLACEHOLDER_ + '(t, elem)',
+         '  for k, v in ipairs(t) do',
+         '    if v == elem then',
+         '      return k',
+         '    end',
+         '  end',
+         '  return 0',
+         'end']);
+  } else {
+    functionName = Blockly.Lua.provideFunction_(
+        'last_index',
+        ['function ' + Blockly.Lua.FUNCTION_NAME_PLACEHOLDER_ + '(t, elem)',
+         '  for i = #t, 1, -1 do',
+         '    if t[i] == elem then',
+         '      return i',
+         '    end',
+         '  end',
+         '  return 0',
+         'end']);
+  }
+  var code = functionName + '(' + argument1 + ', ' + argument0 + ')';
+  return [code, Blockly.Lua.ORDER_HIGH];
+};
+
+var getIndex_ = function(listname, where, at) {
+  if (where == 'FIRST') {
+    return 1;
+  } else if (where == 'FROM_END') {
+    // TODO, check precedence of at.
+    return '#' + listname + ' + 1 - (' + at + ')';
+  } else if (where == 'LAST') {
+    return '#' + listname;
+  } else if (where == 'RANDOM') {
+    return 'math.random(#' + listname + ')';
+  } else {
+    return at;
+  }
+};
+
+var gensym_counter_ = 0;
+
+var gensym_ = function() {
+  return 'G' + gensym_counter_ ++;
 };
 
 Blockly.Lua['lists_getIndex'] = function(block) {
   // Get element at index.
   // Note: Until January 2013 this block did not have MODE or WHERE inputs.
-  var mode = block.getFieldValue('MODE') || 'GET';
-  var where = block.getFieldValue('WHERE') || 'FROM_START';
+  var mode = block.getTitleValue('MODE') || 'GET';
+  var where = block.getTitleValue('WHERE') || 'FROM_START';
   var at = Blockly.Lua.valueToCode(block, 'AT',
-      Blockly.Lua.ORDER_UNARY_NEGATION) || '1';
+      Blockly.Lua.ORDER_ADDITIVE) || '1';
   var list = Blockly.Lua.valueToCode(block, 'VALUE',
-      Blockly.Lua.ORDER_MEMBER) || '[]';
+      Blockly.Lua.ORDER_HIGH) || '({})';
 
-  if (where == 'FIRST') {
-    if (mode == 'GET') {
-      var code = list + '[0]';
-      return [code, Blockly.Lua.ORDER_MEMBER];
-    } else if (mode == 'GET_REMOVE') {
-      var code = list + '.shift()';
-      return [code, Blockly.Lua.ORDER_MEMBER];
-    } else if (mode == 'REMOVE') {
-      return list + '.shift();\n';
-    }
-  } else if (where == 'LAST') {
-    if (mode == 'GET') {
-      var code = list + '.slice(-1)[0]';
-      return [code, Blockly.Lua.ORDER_MEMBER];
-    } else if (mode == 'GET_REMOVE') {
-      var code = list + '.pop()';
-      return [code, Blockly.Lua.ORDER_MEMBER];
-    } else if (mode == 'REMOVE') {
-      return list + '.pop();\n';
-    }
-  } else if (where == 'FROM_START') {
-    // Blockly uses one-based indicies.
-    if (Blockly.isNumber(at)) {
-      // If the index is a naked number, decrement it right now.
-      at = parseFloat(at) - 1;
+  // If the list would not to be evaluated more than once (which is the
+  // case for LAST, FROM_END, and RANDOM) and is non-trivial, make sure
+  // to access it only once.
+  if ((where == 'LAST' || where == 'FROM_END' || where == 'RANDOM') &&
+      !list.match(/^\w+$/)) {
+    // List is an expression, so we may not evaluate it more than once.
+    if (mode == 'REMOVE') {
+      // We can use multiple statements.
+      var listVar = Blockly.Lua.variableDB_.getDistinctName(
+          'tmp_list', Blockly.Variables.NAME_TYPE);
+      var code = listVar + ' = ' + list + '\n' +
+          'table.remove(' + listVar + ', ' + getIndex_(listVar, where, at) +
+              ')\n';
+      return code;
     } else {
-      // If the index is dynamic, decrement it in code.
-      at += ' - 1';
+      // We need to create a procedure to avoid reevaluating values.
+      if (mode == 'GET') {
+        // Note that getIndex_() ignores at when where == 'LAST' or 'RANDOM',
+        // so we only need one procedure for each of those 'where' values.
+        // The value for 'FROM_END' depends on 'at', so we will generate a
+        // unique procedure (name) each time.
+        var functionName = Blockly.Lua.provideFunction_(
+            'list_get_' + where.toLowerCase() +
+                (where == 'FROM_END' ? '_' + gensym_() : ''),
+            ['function ' + Blockly.Lua.FUNCTION_NAME_PLACEHOLDER_ + '(t)',
+             '  return t[' + getIndex_('t', where, at) + ']',
+             'end']);
+      } else {  // mode == 'GET_REMOVE'
+        // We need to create a procedure.
+        var functionName = Blockly.Lua.provideFunction_(
+            'list_remove_' + where.toLowerCase() +
+                (where == 'FROM_END' ? '_' + gensym_() : ''),
+            ['function ' + Blockly.Lua.FUNCTION_NAME_PLACEHOLDER_ + '(t)',
+             '  return table.remove(t, ' + getIndex_('t', where, at) + ')',
+             'end']);
+      }
+      var code = functionName + '(' + list + ')';
+      return [code, Blockly.Lua.ORDER_HIGH];
     }
+  } else {
+    // Either list is a simple variable, or we only need to refer to list once.
     if (mode == 'GET') {
-      var code = list + '[' + at + ']';
-      return [code, Blockly.Lua.ORDER_MEMBER];
-    } else if (mode == 'GET_REMOVE') {
-      var code = list + '.splice(' + at + ', 1)[0]';
-      return [code, Blockly.Lua.ORDER_FUNCTION_CALL];
-    } else if (mode == 'REMOVE') {
-      return list + '.splice(' + at + ', 1);\n';
-    }
-  } else if (where == 'FROM_END') {
-    if (mode == 'GET') {
-      var code = list + '.slice(-' + at + ')[0]';
-      return [code, Blockly.Lua.ORDER_FUNCTION_CALL];
-    } else if (mode == 'GET_REMOVE' || mode == 'REMOVE') {
-      var functionName = Blockly.Lua.provideFunction_(
-          'lists_remove_from_end',
-          [ 'function ' + Blockly.Lua.FUNCTION_NAME_PLACEHOLDER_ +
-              '(list, x) {',
-            '  x = list.length - x;',
-            '  return list.splice(x, 1)[0];',
-            '}']);
-      code = functionName + '(' + list + ', ' + at + ')';
+      var code = list + '[' + getIndex_(list, where, at) + ']';
+      return [code, Blockly.Lua.ORDER_HIGH];
+    } else {
+      var code = 'table.remove(' + list + ', ' + getIndex_(list, where, at) +
+          ')';
       if (mode == 'GET_REMOVE') {
-        return [code, Blockly.Lua.ORDER_FUNCTION_CALL];
-      } else if (mode == 'REMOVE') {
-        return code + ';\n';
+        return [code, Blockly.Lua.ORDER_HIGH];
+      } else {  // mode == 'REMOVE'
+        return code + '\n';
       }
     }
-  } else if (where == 'RANDOM') {
-    var functionName = Blockly.Lua.provideFunction_(
-        'lists_get_random_item',
-        [ 'function ' + Blockly.Lua.FUNCTION_NAME_PLACEHOLDER_ +
-            '(list, remove) {',
-          '  var x = Math.floor(Math.random() * list.length);',
-          '  if (remove) {',
-          '    return list.splice(x, 1)[0];',
-          '  } else {',
-          '    return list[x];',
-          '  }',
-          '}']);
-    code = functionName + '(' + list + ', ' + (mode != 'GET') + ')';
-    if (mode == 'GET' || mode == 'GET_REMOVE') {
-      return [code, Blockly.Lua.ORDER_FUNCTION_CALL];
-    } else if (mode == 'REMOVE') {
-      return code + ';\n';
-    }
   }
-  throw 'Unhandled combination (lists_getIndex).';
 };
 
 Blockly.Lua['lists_setIndex'] = function(block) {
   // Set element at index.
   // Note: Until February 2013 this block did not have MODE or WHERE inputs.
   var list = Blockly.Lua.valueToCode(block, 'LIST',
-      Blockly.Lua.ORDER_MEMBER) || '[]';
-  var mode = block.getFieldValue('MODE') || 'GET';
+      Blockly.Lua.ORDER_HIGH) || '({})';
+  var mode = block.getFieldValue('MODE') || 'SET';
   var where = block.getFieldValue('WHERE') || 'FROM_START';
   var at = Blockly.Lua.valueToCode(block, 'AT',
       Blockly.Lua.ORDER_NONE) || '1';
   var value = Blockly.Lua.valueToCode(block, 'TO',
-      Blockly.Lua.ORDER_ASSIGNMENT) || 'null';
-  // Cache non-trivial values to variables to prevent repeated look-ups.
-  // Closure, which accesses and modifies 'list'.
-  function cacheList() {
-    if (list.match(/^\w+$/)) {
-      return '';
+      Blockly.Lua.ORDER_NONE) || 'None';
+
+  // If the list would need to be evaluated more than once (which is the
+  // case for LAST, FROM_END, and RANDOM) and is non-trivial, make sure
+  // to access it only once.
+  if ((where == 'LAST' || where == 'FROM_END' || where == 'RANDOM') &&
+      !list.match(/^\w+$/)) {
+    // List is an expression, so we may not evaluate it more than once.
+    if (where == 'RANDOM' || where == 'LAST') {
+      // In these cases, 'at' is implicit.  getIndex_() ignores its value.
+      if (mode == 'SET') {
+        var functionName = Blockly.Lua.provideFunction_(
+            'list_set_' + where.toLowerCase(),
+            ['function ' + Blockly.Lua.FUNCTION_NAME_PLACEHOLDER_ + '(t, val)',
+             '  t[' + getIndex_('t', where, at) + '] = val',
+             'end']);
+      } else {  // mode == 'INSERT'
+        var functionName = Blockly.Lua.provideFunction_(
+            'list_insert_' + where.toLowerCase(),
+            ['function ' + Blockly.Lua.FUNCTION_NAME_PLACEHOLDER_ + '(t, val)',
+             '  table.insert(t, ' +
+                 // LAST is a special case, because we want to insert
+                 // *after* not *before*, the existing last element.
+                 getIndex_('t', where, at) + (where == 'LAST' ? ' + 1' : '') +
+                 ', val)',
+             'end']);
+      }
+      var code = functionName + '(' + list + ', ' + value + ')\n';
+      return code;
+    } else {  // where = FROM_END
+      if (mode == 'SET') {
+        var functionName = Blockly.Lua.provideFunction_(
+            'list_set_from_end',
+            ['function ' + Blockly.Lua.FUNCTION_NAME_PLACEHOLDER_ +
+                '(t, index, val)',
+             '  t[#t + 1 - index] = val',
+             'end']);
+      } else {  // mode == 'INSERT'
+        var functionName = Blockly.Lua.provideFunction_(
+            'list_insert_from_end',
+            ['function ' + Blockly.Lua.FUNCTION_NAME_PLACEHOLDER_ +
+                '(t, index, val)',
+             '  table.insert(t, #t + 1 - index, val)',
+             'end']);
+      }
+      var code = functionName + '(' + list + ', ' + at + ', ' + value + ')\n';
+      return code;
     }
-    var listVar = Blockly.Lua.variableDB_.getDistinctName(
-        'tmp_list', Blockly.Variables.NAME_TYPE);
-    var code = 'var ' + listVar + ' = ' + list + ';\n';
-    list = listVar;
-    return code;
+  } else {
+    // It's okay to have multiple references to the list.
+    if (mode == 'SET') {
+      var code = list + '[' + getIndex_(list, where, at) + '] = ' + value;
+    } else {  // mode == 'INSERT'
+      // LAST is a special case, because we want to insert
+      // *after* not *before*, the existing last element.
+      var code = 'table.insert(' + list + ', ' +
+          (getIndex_(list, where, at) + (where == 'LAST' ? ' + 1' : '')) +
+          ', ' + value + ')';
+    }
+    return code + '\n';
   }
-  if (where == 'FIRST') {
-    if (mode == 'SET') {
-      return list + '[0] = ' + value + ';\n';
-    } else if (mode == 'INSERT') {
-      return list + '.unshift(' + value + ');\n';
-    }
-  } else if (where == 'LAST') {
-    if (mode == 'SET') {
-      var code = cacheList();
-      code += list + '[' + list + '.length - 1] = ' + value + ';\n';
-      return code;
-    } else if (mode == 'INSERT') {
-      return list + '.push(' + value + ');\n';
-    }
-  } else if (where == 'FROM_START') {
-    // Blockly uses one-based indicies.
-    if (Blockly.isNumber(at)) {
-      // If the index is a naked number, decrement it right now.
-      at = parseFloat(at) - 1;
-    } else {
-      // If the index is dynamic, decrement it in code.
-      at += ' - 1';
-    }
-    if (mode == 'SET') {
-      return list + '[' + at + '] = ' + value + ';\n';
-    } else if (mode == 'INSERT') {
-      return list + '.splice(' + at + ', 0, ' + value + ');\n';
-    }
-  } else if (where == 'FROM_END') {
-    var code = cacheList();
-    if (mode == 'SET') {
-      code += list + '[' + list + '.length - ' + at + '] = ' + value + ';\n';
-      return code;
-    } else if (mode == 'INSERT') {
-      code += list + '.splice(' + list + '.length - ' + at + ', 0, ' + value +
-          ');\n';
-      return code;
-    }
-  } else if (where == 'RANDOM') {
-    var code = cacheList();
-    var xVar = Blockly.Lua.variableDB_.getDistinctName(
-        'tmp_x', Blockly.Variables.NAME_TYPE);
-    code += 'var ' + xVar + ' = Math.floor(Math.random() * ' + list +
-        '.length);\n';
-    if (mode == 'SET') {
-      code += list + '[' + xVar + '] = ' + value + ';\n';
-      return code;
-    } else if (mode == 'INSERT') {
-      code += list + '.splice(' + xVar + ', 0, ' + value + ');\n';
-      return code;
-    }
-  }
-  throw 'Unhandled combination (lists_setIndex).';
 };
 
 Blockly.Lua['lists_getSublist'] = function(block) {
   // Get sublist.
   var list = Blockly.Lua.valueToCode(block, 'LIST',
-      Blockly.Lua.ORDER_MEMBER) || '[]';
+      Blockly.Lua.ORDER_HIGH) || '({})';
   var where1 = block.getFieldValue('WHERE1');
   var where2 = block.getFieldValue('WHERE2');
   var at1 = Blockly.Lua.valueToCode(block, 'AT1',
-      Blockly.Lua.ORDER_NONE) || '1';
+      Blockly.Lua.ORDER_ADDITIVE) || '1';
   var at2 = Blockly.Lua.valueToCode(block, 'AT2',
-      Blockly.Lua.ORDER_NONE) || '1';
-  if (where1 == 'FIRST' && where2 == 'LAST') {
-    var code = list + '.concat()';
-  } else {
-    var functionName = Blockly.Lua.provideFunction_(
-        'lists_get_sublist',
-        [ 'function ' + Blockly.Lua.FUNCTION_NAME_PLACEHOLDER_ +
-            '(list, where1, at1, where2, at2) {',
-          '  function getAt(where, at) {',
-          '    if (where == \'FROM_START\') {',
-          '      at--;',
-          '    } else if (where == \'FROM_END\') {',
-          '      at = list.length - at;',
-          '    } else if (where == \'FIRST\') {',
-          '      at = 0;',
-          '    } else if (where == \'LAST\') {',
-          '      at = list.length - 1;',
-          '    } else {',
-          '      throw \'Unhandled option (lists_getSublist).\';',
-          '    }',
-          '    return at;',
-          '  }',
-          '  at1 = getAt(where1, at1);',
-          '  at2 = getAt(where2, at2) + 1;',
-          '  return list.slice(at1, at2);',
-          '}']);
-    var code = functionName + '(' + list + ', \'' +
-        where1 + '\', ' + at1 + ', \'' + where2 + '\', ' + at2 + ')';
-  }
-  return [code, Blockly.Lua.ORDER_FUNCTION_CALL];
+      Blockly.Lua.ORDER_ADDITIVE) || '1';
+
+  var functionName = Blockly.Lua.provideFunction_(
+      'list_sublist_' + gensym_(),
+      ['function ' + Blockly.Lua.FUNCTION_NAME_PLACEHOLDER_ + '(source)',
+       '  local t = {}',
+       '  local start = ' + getIndex_('source', where1, at1),
+       '  local finish = ' + getIndex_('source', where2, at2),
+       '  for i = start, finish do',
+       '    table.insert(t, source[i])',
+       '  end',
+       '  return t',
+       'end']);
+  var code = functionName + '(' + list + ')';
+  return [code, Blockly.Lua.ORDER_HIGH];
 };
 
 Blockly.Lua['lists_split'] = function(block) {
   // Block for splitting text into a list, or joining a list into text.
   var value_input = Blockly.Lua.valueToCode(block, 'INPUT',
-      Blockly.Lua.ORDER_MEMBER);
+      Blockly.Lua.ORDER_NONE);
   var value_delim = Blockly.Lua.valueToCode(block, 'DELIM',
       Blockly.Lua.ORDER_NONE) || '\'\'';
   var mode = block.getFieldValue('MODE');
+  var functionName;
   if (mode == 'SPLIT') {
     if (!value_input) {
       value_input = '\'\'';
     }
-    var functionName = 'split';
+    var functionName = Blockly.Lua.provideFunction_(
+        'list_string_split',
+        ['function ' + Blockly.Lua.FUNCTION_NAME_PLACEHOLDER_ + '(input, delim)',
+         '  local t = {}',
+         '  local pos = 1',
+         '  while true do',
+         '    next_delim = string.find(input, delim, pos)',
+         '    if next_delim == nil then',
+         '      table.insert(t, string.sub(input, pos))',
+         '      break',
+         '    else',
+         '      table.insert(t, string.sub(input, pos, next_delim-1))',
+         '      pos = next_delim + #delim',
+         '    end',
+         '  end',
+         '  return t',
+         'end']);
   } else if (mode == 'JOIN') {
     if (!value_input) {
-      value_input = '[]';
+      value_input = '({})';
     }
-    var functionName = 'join';
+    var functionName = 'table.concat';
   } else {
     throw 'Unknown mode: ' + mode;
   }
-  var code = value_input + '.' + functionName + '(' + value_delim + ')';
-  return [code, Blockly.Lua.ORDER_FUNCTION_CALL];
+  var code = functionName + '(' + value_input + ', ' + value_delim + ')';
+  return [code, Blockly.Lua.ORDER_HIGH];
 };

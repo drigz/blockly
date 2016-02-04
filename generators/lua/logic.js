@@ -35,44 +35,42 @@ Blockly.Lua['controls_if'] = function(block) {
   var argument = Blockly.Lua.valueToCode(block, 'IF' + n,
       Blockly.Lua.ORDER_NONE) || 'false';
   var branch = Blockly.Lua.statementToCode(block, 'DO' + n);
-  var code = 'if (' + argument + ') {\n' + branch + '}';
+  var code = 'if ' + argument + ' then\n' + branch;
   for (n = 1; n <= block.elseifCount_; n++) {
     argument = Blockly.Lua.valueToCode(block, 'IF' + n,
         Blockly.Lua.ORDER_NONE) || 'false';
     branch = Blockly.Lua.statementToCode(block, 'DO' + n);
-    code += ' else if (' + argument + ') {\n' + branch + '}';
+    code += ' elseif ' + argument + ' then\n' + branch;
   }
   if (block.elseCount_) {
     branch = Blockly.Lua.statementToCode(block, 'ELSE');
-    code += ' else {\n' + branch + '}';
+    code += ' else\n' + branch;
   }
-  return code + '\n';
+  return code + 'end\n';
 };
 
 Blockly.Lua['logic_compare'] = function(block) {
   // Comparison operator.
   var OPERATORS = {
     'EQ': '==',
-    'NEQ': '!=',
+    'NEQ': '~=',
     'LT': '<',
     'LTE': '<=',
     'GT': '>',
     'GTE': '>='
   };
   var operator = OPERATORS[block.getFieldValue('OP')];
-  var order = (operator == '==' || operator == '!=') ?
-      Blockly.Lua.ORDER_EQUALITY : Blockly.Lua.ORDER_RELATIONAL;
-  var argument0 = Blockly.Lua.valueToCode(block, 'A', order) || '0';
-  var argument1 = Blockly.Lua.valueToCode(block, 'B', order) || '0';
+  var argument0 = Blockly.Lua.valueToCode(block, 'A', Blockly.Lua.ORDER_RELATIONAL) || '0';
+  var argument1 = Blockly.Lua.valueToCode(block, 'B', Blockly.Lua.ORDER_RELATIONAL) || '0';
   var code = argument0 + ' ' + operator + ' ' + argument1;
-  return [code, order];
+  return [code, Blockly.Lua.ORDER_RELATIONAL];
 };
 
 Blockly.Lua['logic_operation'] = function(block) {
   // Operations 'and', 'or'.
-  var operator = (block.getFieldValue('OP') == 'AND') ? '&&' : '||';
-  var order = (operator == '&&') ? Blockly.Lua.ORDER_LOGICAL_AND :
-      Blockly.Lua.ORDER_LOGICAL_OR;
+  var operator = (block.getFieldValue('OP') == 'AND') ? 'and' : 'or';
+  var order = (operator == 'and') ? Blockly.Lua.ORDER_AND :
+      Blockly.Lua.ORDER_OR;
   var argument0 = Blockly.Lua.valueToCode(block, 'A', order);
   var argument1 = Blockly.Lua.valueToCode(block, 'B', order);
   if (!argument0 && !argument1) {
@@ -81,7 +79,7 @@ Blockly.Lua['logic_operation'] = function(block) {
     argument1 = 'false';
   } else {
     // Single missing arguments have no effect on the return value.
-    var defaultArgument = (operator == '&&') ? 'true' : 'false';
+    var defaultArgument = (operator == 'and') ? 'true' : 'false';
     if (!argument0) {
       argument0 = defaultArgument;
     }
@@ -95,11 +93,10 @@ Blockly.Lua['logic_operation'] = function(block) {
 
 Blockly.Lua['logic_negate'] = function(block) {
   // Negation.
-  var order = Blockly.Lua.ORDER_LOGICAL_NOT;
-  var argument0 = Blockly.Lua.valueToCode(block, 'BOOL', order) ||
-      'true';
-  var code = '!' + argument0;
-  return [code, order];
+  var argument0 = Blockly.Lua.valueToCode(block, 'BOOL',
+      Blockly.Lua.ORDER_UNARY) || 'true';
+  var code = 'not ' + argument0;
+  return [code, Blockly.Lua.ORDER_UNARY];
 };
 
 Blockly.Lua['logic_boolean'] = function(block) {
@@ -110,17 +107,17 @@ Blockly.Lua['logic_boolean'] = function(block) {
 
 Blockly.Lua['logic_null'] = function(block) {
   // Null data type.
-  return ['null', Blockly.Lua.ORDER_ATOMIC];
+  return ['nil', Blockly.Lua.ORDER_ATOMIC];
 };
 
 Blockly.Lua['logic_ternary'] = function(block) {
   // Ternary operator.
   var value_if = Blockly.Lua.valueToCode(block, 'IF',
-      Blockly.Lua.ORDER_CONDITIONAL) || 'false';
+      Blockly.Lua.ORDER_AND) || 'false';
   var value_then = Blockly.Lua.valueToCode(block, 'THEN',
-      Blockly.Lua.ORDER_CONDITIONAL) || 'null';
+      Blockly.Lua.ORDER_AND) || 'nil';
   var value_else = Blockly.Lua.valueToCode(block, 'ELSE',
-      Blockly.Lua.ORDER_CONDITIONAL) || 'null';
-  var code = value_if + ' ? ' + value_then + ' : ' + value_else;
-  return [code, Blockly.Lua.ORDER_CONDITIONAL];
+      Blockly.Lua.ORDER_OR) || 'nil';
+  var code = value_if + ' and ' + value_then + ' or ' + value_else;
+  return [code, Blockly.Lua.ORDER_OR];
 };

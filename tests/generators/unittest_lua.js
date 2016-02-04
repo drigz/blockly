@@ -30,46 +30,44 @@ Blockly.Lua['unittest_main'] = function(block) {
       Blockly.Variables.NAME_TYPE);
   var functionName = Blockly.Lua.provideFunction_(
       'unittest_report',
-      [ 'function ' + Blockly.Lua.FUNCTION_NAME_PLACEHOLDER_ + '() {',
-        '  // Create test report.',
-        '  var report = [];',
-        '  var summary = [];',
-        '  var fails = 0;',
-        '  for (var x = 0; x < ' + resultsVar + '.length; x++) {',
-        '    if (' + resultsVar + '[x][0]) {',
-        '      summary.push(".");',
-        '    } else {',
-        '      summary.push("F");',
-        '      fails++;',
-        '      report.push("");',
-        '      report.push("FAIL: " + ' + resultsVar + '[x][2]);',
-        '      report.push(' + resultsVar + '[x][1]);',
-        '    }',
-        '  }',
-        '  report.unshift(summary.join(""));',
-        '  report.push("");',
-        '  report.push("Number of tests run: " + ' + resultsVar +
-              '.length);',
-        '  report.push("");',
-        '  if (fails) {',
-        '    report.push("FAILED (failures=" + fails + ")");',
-        '  } else {',
-        '    report.push("OK");',
-        '  }',
-        '  return report.join("\\n");',
-        '}']);
+      ['function ' + Blockly.Lua.FUNCTION_NAME_PLACEHOLDER_ + '()',
+       '  -- Create test report.',
+       '  local report = {}',
+       '  local summary = {}',
+       '  local fails = 0',
+       '  for _, v in pairs(' + resultsVar + ') do',
+       '    if v["success"] then',
+       '      table.insert(summary, ".")',
+       '    else',
+       '      table.insert(summary, "F")',
+       '      fails = fails + 1',
+       '      table.insert(report, "FAIL: " .. v["title"])',
+       '      table.insert(report, v["log"])',
+       '    end',
+       '  end',
+       '  table.insert(report, 1, table.concat(summary))',
+       '  table.insert(report, "")',
+       '  table.insert(report, "Number of tests run: " .. #' + resultsVar + ')',
+       '  table.insert(report, "")',
+       '  if fails > 0 then',
+       '    table.insert(report, "FAILED (failures=" .. fails .. ")")',
+       '  else',
+       '    table.insert(report, "OK")',
+       '  end',
+       '  return table.concat(report, "\\n")',
+       'end']);
   // Setup global to hold test results.
-  var code = resultsVar + ' = [];\n';
+  var code = resultsVar + ' = {}\n';
   // Run tests (unindented).
   code += Blockly.Lua.statementToCode(block, 'DO')
       .replace(/^  /, '').replace(/\n  /g, '\n');
   var reportVar = Blockly.Lua.variableDB_.getDistinctName(
       'report', Blockly.Variables.NAME_TYPE);
-  code += 'var ' + reportVar + ' = ' + functionName + '();\n';
+  code += reportVar + ' = ' + functionName + '()\n';
   // Destroy results.
-  code += resultsVar + ' = null;\n';
-  // Send the report to the console (that's where errors will go anyway).
-  code += 'console.log(' + reportVar + ');\n';
+  code += resultsVar + ' = nil\n';
+  // Print the report.
+  code += 'print(' + reportVar + ')\n';
   return code;
 };
 
@@ -78,38 +76,44 @@ Blockly.Lua['unittest_main'].defineAssert_ = function(block) {
       Blockly.Variables.NAME_TYPE);
   var functionName = Blockly.Lua.provideFunction_(
       'assertEquals',
-      [ 'function ' + Blockly.Lua.FUNCTION_NAME_PLACEHOLDER_ +
-          '(actual, expected, message) {',
-        '  // Asserts that a value equals another value.',
-        '  if (!' + resultsVar + ') {',
-        '    throw "Orphaned assert: " + message;',
-        '  }',
-        '  function equals(a, b) {',
-        '    if (a === b) {',
-        '      return true;',
-        '    } else if ((typeof a == "number") && (typeof b == "number") &&',
-        '        (a.toPrecision(15) == b.toPrecision(15))) {',
-        '      return true;',
-        '    } else if (a instanceof Array && b instanceof Array) {',
-        '      if (a.length != b.length) {',
-        '        return false;',
-        '      }',
-        '      for (var i = 0; i < a.length; i++) {',
-        '        if (!equals(a[i], b[i])) {',
-        '          return false;',
-        '        }',
-        '      }',
-        '      return true;',
-        '    }',
-        '    return false;',
-        '  }',
-        '  if (equals(actual, expected)) {',
-        '    ' + resultsVar + '.push([true, "OK", message]);',
-        '  } else {',
-        '    ' + resultsVar + '.push([false, ' +
-          '"Expected: " + expected + "\\nActual: " + actual, message]);',
-        '  }',
-        '}']);
+      ['function ' + Blockly.Lua.FUNCTION_NAME_PLACEHOLDER_ +
+          '(actual, expected, message)',
+       '  -- Asserts that a value equals another value.',
+       '  assert(' + resultsVar + ' ~= nil, ' +
+           '"Orphaned assert equals: " ..  message)',
+       '  if type(actual) == "table" and type(expected) == "table" then',
+       '    local lists_match = #actual == #expected',
+       '    if lists_match then',
+       '      for i, v1 in ipairs(actual) do',
+       '        local v2 = expected[i]',
+       '        if type(v1) == "number" and type(v2) == "number" then',
+       '          if math.abs(v1 - v2) > 1e-9 then',
+       '            lists_match = false',
+       '          end',
+       '        elseif v1 ~= v2 then',
+       '          lists_match = false',
+       '        end',
+       '      end',
+       '    end',
+       '    if lists_match then',
+       '      table.insert(' + resultsVar +
+             ', {success=true, log="OK", title=message})',
+       '      return',
+       '    else',
+       '      -- produce the non-matching strings for a human-readable error',
+       '      expected = "{" .. table.concat(expected, ", ") .. "}"',
+       '      actual = "{" .. table.concat(actual, ", ") .. "}"',
+       '    end',
+       '  end',
+       '  if actual == expected then',
+       '    table.insert(' + resultsVar +
+           ', {success=true, log="OK", title=message})',
+       '  else',
+       '    table.insert(' + resultsVar + ', {success=false, ' +
+           'log=string.format("Expected: %s\\nActual: %s"' +
+               ', expected, actual), title=message})',
+       '  end',
+       'end']);
   return functionName;
 };
 
@@ -117,28 +121,28 @@ Blockly.Lua['unittest_assertequals'] = function(block) {
   // Asserts that a value equals another value.
   var message = Blockly.Lua.quote_(block.getFieldValue('MESSAGE'));
   var actual = Blockly.Lua.valueToCode(block, 'ACTUAL',
-      Blockly.Lua.ORDER_COMMA) || 'null';
+      Blockly.Lua.ORDER_NONE) || 'nil';
   var expected = Blockly.Lua.valueToCode(block, 'EXPECTED',
-      Blockly.Lua.ORDER_COMMA) || 'null';
+      Blockly.Lua.ORDER_NONE) || 'nil';
   return Blockly.Lua['unittest_main'].defineAssert_() +
-      '(' + actual + ', ' + expected + ', ' + message + ');\n';
+      '(' + actual + ', ' + expected + ', ' + message + ')\n';
 };
 
 Blockly.Lua['unittest_assertvalue'] = function(block) {
   // Asserts that a value is true, false, or null.
   var message = Blockly.Lua.quote_(block.getFieldValue('MESSAGE'));
   var actual = Blockly.Lua.valueToCode(block, 'ACTUAL',
-      Blockly.Lua.ORDER_COMMA) || 'null';
+      Blockly.Lua.ORDER_NONE) || 'nil';
   var expected = block.getFieldValue('EXPECTED');
   if (expected == 'TRUE') {
     expected = 'true';
   } else if (expected == 'FALSE') {
     expected = 'false';
   } else if (expected == 'NULL') {
-    expected = 'null';
+    expected = 'nil';
   }
-  return Blockly.Lua['unittest_main'].defineAssert_() +
-      '(' + actual + ', ' + expected + ', ' + message + ');\n';
+  return Blockly.Lua.unittest_main.defineAssert_() +
+      '(' + actual + ', ' + expected + ', ' + message + ')\n';
 };
 
 Blockly.Lua['unittest_fail'] = function(block) {
@@ -148,13 +152,11 @@ Blockly.Lua['unittest_fail'] = function(block) {
   var message = Blockly.Lua.quote_(block.getFieldValue('MESSAGE'));
   var functionName = Blockly.Lua.provideFunction_(
       'unittest_fail',
-      [ 'function ' + Blockly.Lua.FUNCTION_NAME_PLACEHOLDER_ +
-          '(message) {',
-        '  // Always assert an error.',
-        '  if (!' + resultsVar + ') {',
-        '    throw "Orphaned assert fail: " + message;',
-        '  }',
-        '  ' + resultsVar + '.push([false, "Fail.", message]);',
-        '}']);
-  return functionName + '(' + message + ');\n';
+      ['function ' + Blockly.Lua.FUNCTION_NAME_PLACEHOLDER_ + '(message)',
+       '  -- Always assert an error.',
+       '  assert(' + resultsVar + ' ~= nil, "Orphaned assert fail: " .. message)',
+       '  table.insert(' + resultsVar +
+           ', {success=false, log="Fail.", title=message})',
+       'end']);
+  return functionName + '(' + message + ')\n';
 };

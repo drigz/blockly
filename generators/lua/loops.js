@@ -28,114 +28,86 @@ goog.provide('Blockly.Lua.loops');
 
 goog.require('Blockly.Lua');
 
-
-Blockly.Lua['controls_repeat_ext'] = function(block) {
-  // Repeat n times.
-  if (block.getField('TIMES')) {
-    // Internal number.
-    var repeats = String(Number(block.getFieldValue('TIMES')));
-  } else {
-    // External number.
-    var repeats = Blockly.Lua.valueToCode(block, 'TIMES',
-        Blockly.Lua.ORDER_ASSIGNMENT) || '0';
-  }
-  var branch = Blockly.Lua.statementToCode(block, 'DO');
-  branch = Blockly.Lua.addLoopTrap(branch, block.id);
-  var code = '';
+Blockly.Lua['controls_repeat'] = function(block) {
+  // Repeat n times (internal number).
+  var repeats = parseInt(block.getFieldValue('TIMES'), 10);
+  var branch = Blockly.Lua.statementToCode(block, 'DO') || '';
   var loopVar = Blockly.Lua.variableDB_.getDistinctName(
       'count', Blockly.Variables.NAME_TYPE);
-  var endVar = repeats;
-  if (!repeats.match(/^\w+$/) && !Blockly.isNumber(repeats)) {
-    var endVar = Blockly.Lua.variableDB_.getDistinctName(
-        'repeat_end', Blockly.Variables.NAME_TYPE);
-    code += 'var ' + endVar + ' = ' + repeats + ';\n';
-  }
-  code += 'for (var ' + loopVar + ' = 0; ' +
-      loopVar + ' < ' + endVar + '; ' +
-      loopVar + '++) {\n' +
-      branch + '}\n';
+  var code = 'for ' + loopVar + '= 1, ' + repeats + ' do\n' + branch + 'end';
   return code;
 };
 
-Blockly.Lua['controls_repeat'] =
-    Blockly.Lua['controls_repeat_ext'];
+Blockly.Lua['controls_repeat_ext'] = function(block) {
+  // Repeat n times (external number).
+  var repeats = Blockly.Lua.valueToCode(block, 'TIMES',
+      Blockly.Lua.ORDER_NONE) || '0';
+  if (Blockly.isNumber(repeats)) {
+    repeats = parseInt(repeats, 10);
+  } else {
+    repeats = 'math.floor(' + repeats + ')';
+  }
+  var branch = Blockly.Lua.statementToCode(block, 'DO') || '\n';
+  var loopVar = Blockly.Lua.variableDB_.getDistinctName(
+      'count', Blockly.Variables.NAME_TYPE);
+  var code = 'for ' + loopVar + ' = 1, ' + repeats + ' do\n' +
+      branch + 'end\n';
+  return code;
+};
 
 Blockly.Lua['controls_whileUntil'] = function(block) {
   // Do while/until loop.
   var until = block.getFieldValue('MODE') == 'UNTIL';
   var argument0 = Blockly.Lua.valueToCode(block, 'BOOL',
-      until ? Blockly.Lua.ORDER_LOGICAL_NOT :
+      until ? Blockly.Lua.ORDER_UNARY :
       Blockly.Lua.ORDER_NONE) || 'false';
-  var branch = Blockly.Lua.statementToCode(block, 'DO');
+  var branch = Blockly.Lua.statementToCode(block, 'DO') || '\n';
   branch = Blockly.Lua.addLoopTrap(branch, block.id);
   if (until) {
-    argument0 = '!' + argument0;
+    argument0 = 'not ' + argument0;
   }
-  return 'while (' + argument0 + ') {\n' + branch + '}\n';
+  return 'while ' + argument0 + ' do\n' + branch + 'end\n';
 };
 
 Blockly.Lua['controls_for'] = function(block) {
   // For loop.
   var variable0 = Blockly.Lua.variableDB_.getName(
       block.getFieldValue('VAR'), Blockly.Variables.NAME_TYPE);
-  var argument0 = Blockly.Lua.valueToCode(block, 'FROM',
-      Blockly.Lua.ORDER_ASSIGNMENT) || '0';
-  var argument1 = Blockly.Lua.valueToCode(block, 'TO',
-      Blockly.Lua.ORDER_ASSIGNMENT) || '0';
+  var startVar = Blockly.Lua.valueToCode(block, 'FROM',
+      Blockly.Lua.ORDER_NONE) || '0';
+  var endVar = Blockly.Lua.valueToCode(block, 'TO',
+      Blockly.Lua.ORDER_NONE) || '0';
   var increment = Blockly.Lua.valueToCode(block, 'BY',
-      Blockly.Lua.ORDER_ASSIGNMENT) || '1';
-  var branch = Blockly.Lua.statementToCode(block, 'DO');
+      Blockly.Lua.ORDER_NONE) || '1';
+  var branch = Blockly.Lua.statementToCode(block, 'DO') || '\n';
   branch = Blockly.Lua.addLoopTrap(branch, block.id);
-  var code;
-  if (Blockly.isNumber(argument0) && Blockly.isNumber(argument1) &&
+  var code = '';
+  var incValue;
+  if (Blockly.isNumber(startVar) && Blockly.isNumber(endVar) &&
       Blockly.isNumber(increment)) {
     // All arguments are simple numbers.
-    var up = parseFloat(argument0) <= parseFloat(argument1);
-    code = 'for (' + variable0 + ' = ' + argument0 + '; ' +
-        variable0 + (up ? ' <= ' : ' >= ') + argument1 + '; ' +
-        variable0;
+    var up = parseFloat(startVar) <= parseFloat(endVar);
     var step = Math.abs(parseFloat(increment));
-    if (step == 1) {
-      code += up ? '++' : '--';
-    } else {
-      code += (up ? ' += ' : ' -= ') + step;
-    }
-    code += ') {\n' + branch + '}\n';
+    incValue = (up ? '' : '-') + step;
   } else {
     code = '';
-    // Cache non-trivial values to variables to prevent repeated look-ups.
-    var startVar = argument0;
-    if (!argument0.match(/^\w+$/) && !Blockly.isNumber(argument0)) {
-      startVar = Blockly.Lua.variableDB_.getDistinctName(
-          variable0 + '_start', Blockly.Variables.NAME_TYPE);
-      code += 'var ' + startVar + ' = ' + argument0 + ';\n';
-    }
-    var endVar = argument1;
-    if (!argument1.match(/^\w+$/) && !Blockly.isNumber(argument1)) {
-      var endVar = Blockly.Lua.variableDB_.getDistinctName(
-          variable0 + '_end', Blockly.Variables.NAME_TYPE);
-      code += 'var ' + endVar + ' = ' + argument1 + ';\n';
-    }
     // Determine loop direction at start, in case one of the bounds
     // changes during loop execution.
-    var incVar = Blockly.Lua.variableDB_.getDistinctName(
+    incValue = Blockly.Lua.variableDB_.getDistinctName(
         variable0 + '_inc', Blockly.Variables.NAME_TYPE);
-    code += 'var ' + incVar + ' = ';
+    code += incValue + ' = ';
     if (Blockly.isNumber(increment)) {
-      code += Math.abs(increment) + ';\n';
+      code += Math.abs(increment) + '\n';
     } else {
-      code += 'Math.abs(' + increment + ');\n';
+      code += 'math.abs(' + increment + ')\n';
     }
-    code += 'if (' + startVar + ' > ' + endVar + ') {\n';
-    code += Blockly.Lua.INDENT + incVar + ' = -' + incVar + ';\n';
-    code += '}\n';
-    code += 'for (' + variable0 + ' = ' + startVar + ';\n' +
-        '     ' + incVar + ' >= 0 ? ' +
-        variable0 + ' <= ' + endVar + ' : ' +
-        variable0 + ' >= ' + endVar + ';\n' +
-        '     ' + variable0 + ' += ' + incVar + ') {\n' +
-        branch + '}\n';
+    code += 'if (' + startVar + ') > (' + endVar + ') then\n';
+    code += Blockly.Lua.INDENT + incValue + ' = -' + incValue + '\n';
+    code += 'end\n';
   }
+  code += 'for ' + variable0 + ' = ' + startVar + ', ' + endVar
+                 + ', ' + incValue;
+  code += ' do\n' + branch + 'end\n';
   return code;
 };
 
@@ -144,22 +116,10 @@ Blockly.Lua['controls_forEach'] = function(block) {
   var variable0 = Blockly.Lua.variableDB_.getName(
       block.getFieldValue('VAR'), Blockly.Variables.NAME_TYPE);
   var argument0 = Blockly.Lua.valueToCode(block, 'LIST',
-      Blockly.Lua.ORDER_ASSIGNMENT) || '[]';
-  var branch = Blockly.Lua.statementToCode(block, 'DO');
-  branch = Blockly.Lua.addLoopTrap(branch, block.id);
-  var code = '';
-  // Cache non-trivial values to variables to prevent repeated look-ups.
-  var listVar = argument0;
-  if (!argument0.match(/^\w+$/)) {
-    listVar = Blockly.Lua.variableDB_.getDistinctName(
-        variable0 + '_list', Blockly.Variables.NAME_TYPE);
-    code += 'var ' + listVar + ' = ' + argument0 + ';\n';
-  }
-  var indexVar = Blockly.Lua.variableDB_.getDistinctName(
-      variable0 + '_index', Blockly.Variables.NAME_TYPE);
-  branch = Blockly.Lua.INDENT + variable0 + ' = ' +
-      listVar + '[' + indexVar + '];\n' + branch;
-  code += 'for (var ' + indexVar + ' in ' + listVar + ') {\n' + branch + '}\n';
+      Blockly.Lua.ORDER_NONE) || '{}';
+  var branch = Blockly.Lua.statementToCode(block, 'DO') || '\n';
+  var code = 'for _, ' + variable0 + ' in ipairs(' + argument0 + ') do \n' +
+      branch + 'end\n';
   return code;
 };
 
@@ -167,9 +127,11 @@ Blockly.Lua['controls_flow_statements'] = function(block) {
   // Flow statements: continue, break.
   switch (block.getFieldValue('FLOW')) {
     case 'BREAK':
-      return 'break;\n';
+      return 'break\n';
     case 'CONTINUE':
-      return 'continue;\n';
+      // TODO: how can this be handled more cleanly?
+      // error message to user?
+      throw 'continue statements are not supported in Lua.';
   }
   throw 'Unknown flow statement.';
 };
