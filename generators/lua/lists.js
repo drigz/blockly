@@ -118,8 +118,7 @@ var getIndex_ = function(listname, where, at) {
   if (where == 'FIRST') {
     return 1;
   } else if (where == 'FROM_END') {
-    // TODO, check precedence of at.
-    return '#' + listname + ' + 1 - (' + at + ')';
+    return '#' + listname + ' + 1 - ' + at;
   } else if (where == 'LAST') {
     return '#' + listname;
   } else if (where == 'RANDOM') {
@@ -209,7 +208,7 @@ Blockly.Lua['lists_setIndex'] = function(block) {
   var mode = block.getFieldValue('MODE') || 'SET';
   var where = block.getFieldValue('WHERE') || 'FROM_START';
   var at = Blockly.Lua.valueToCode(block, 'AT',
-      Blockly.Lua.ORDER_NONE) || '1';
+      Blockly.Lua.ORDER_ADDITIVE) || '1';
   var value = Blockly.Lua.valueToCode(block, 'TO',
       Blockly.Lua.ORDER_NONE) || 'None';
 
