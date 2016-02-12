@@ -28,10 +28,30 @@ goog.provide('Blockly.Lua.loops');
 
 goog.require('Blockly.Lua');
 
+Blockly.Lua.CONTINUE_STATEMENT = "goto continue\n";
+
+/**
+ * If the loop body contains a "goto continue" statement, add a continue label
+ * to the loop body. Slightly inefficient, as continue labels will be generated
+ * in all outer loops, but this is safer than duplicating the logic of
+ * blockToCode.
+ *
+ * @param {string} branch Generated code of the loop body
+ * @return {string} Generated label or '' if unnecessary
+ */
+Blockly.Lua.addContinueLabel = function (branch) {
+  if (branch.indexOf(Blockly.Lua.CONTINUE_STATEMENT) > -1) {
+    return branch + Blockly.Lua.INDENT + "::continue::\n";
+  } else {
+    return branch;
+  }
+}
+
 Blockly.Lua['controls_repeat'] = function(block) {
   // Repeat n times (internal number).
   var repeats = parseInt(block.getFieldValue('TIMES'), 10);
   var branch = Blockly.Lua.statementToCode(block, 'DO') || '';
+  branch = Blockly.Lua.addContinueLabel(branch);
   var loopVar = Blockly.Lua.variableDB_.getDistinctName(
       'count', Blockly.Variables.NAME_TYPE);
   var code = 'for ' + loopVar + '= 1, ' + repeats + ' do\n' + branch + 'end';
@@ -48,6 +68,7 @@ Blockly.Lua['controls_repeat_ext'] = function(block) {
     repeats = 'math.floor(' + repeats + ')';
   }
   var branch = Blockly.Lua.statementToCode(block, 'DO') || '\n';
+  branch = Blockly.Lua.addContinueLabel(branch);
   var loopVar = Blockly.Lua.variableDB_.getDistinctName(
       'count', Blockly.Variables.NAME_TYPE);
   var code = 'for ' + loopVar + ' = 1, ' + repeats + ' do\n' +
@@ -63,6 +84,7 @@ Blockly.Lua['controls_whileUntil'] = function(block) {
       Blockly.Lua.ORDER_NONE) || 'false';
   var branch = Blockly.Lua.statementToCode(block, 'DO') || '\n';
   branch = Blockly.Lua.addLoopTrap(branch, block.id);
+  branch = Blockly.Lua.addContinueLabel(branch);
   if (until) {
     argument0 = 'not ' + argument0;
   }
@@ -81,6 +103,7 @@ Blockly.Lua['controls_for'] = function(block) {
       Blockly.Lua.ORDER_NONE) || '1';
   var branch = Blockly.Lua.statementToCode(block, 'DO') || '\n';
   branch = Blockly.Lua.addLoopTrap(branch, block.id);
+  branch = Blockly.Lua.addContinueLabel(branch);
   var code = '';
   var incValue;
   if (Blockly.isNumber(startVar) && Blockly.isNumber(endVar) &&
@@ -118,6 +141,7 @@ Blockly.Lua['controls_forEach'] = function(block) {
   var argument0 = Blockly.Lua.valueToCode(block, 'LIST',
       Blockly.Lua.ORDER_NONE) || '{}';
   var branch = Blockly.Lua.statementToCode(block, 'DO') || '\n';
+  branch = Blockly.Lua.addContinueLabel(branch);
   var code = 'for _, ' + variable0 + ' in ipairs(' + argument0 + ') do \n' +
       branch + 'end\n';
   return code;
@@ -129,9 +153,7 @@ Blockly.Lua['controls_flow_statements'] = function(block) {
     case 'BREAK':
       return 'break\n';
     case 'CONTINUE':
-      // TODO: how can this be handled more cleanly?
-      // error message to user?
-      throw 'continue statements are not supported in Lua.';
+      return Blockly.Lua.CONTINUE_STATEMENT;
   }
   throw 'Unknown flow statement.';
 };
