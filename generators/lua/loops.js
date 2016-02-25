@@ -54,7 +54,7 @@ Blockly.Lua['controls_repeat'] = function(block) {
   branch = Blockly.Lua.addContinueLabel(branch);
   var loopVar = Blockly.Lua.variableDB_.getDistinctName(
       'count', Blockly.Variables.NAME_TYPE);
-  var code = 'for ' + loopVar + '= 1, ' + repeats + ' do\n' + branch + 'end';
+  var code = 'for ' + loopVar + '= 1, ' + repeats + ' do\n' + branch + 'end\n';
   return code;
 };
 
