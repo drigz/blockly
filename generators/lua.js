@@ -125,12 +125,12 @@ Blockly.Lua.finish = function(code) {
 
 /**
  * Naked values are top-level blocks with outputs that aren't plugged into
- * anything.  A trailing semicolon is needed to make this legal.
+ * anything. In Lua, this doesn't need special handling.
  * @param {string} line Line of generated code.
  * @return {string} Legal line of code.
  */
 Blockly.Lua.scrubNakedValue = function(line) {
-  return line + ';\n';
+  return line + '\n';
 };
 
 /**

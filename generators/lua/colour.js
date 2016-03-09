@@ -52,11 +52,11 @@ Blockly.Lua['colour_rgb'] = function(block) {
         '  return string.format("#%02x%02x%02x", r, g, b)',
         'end']);
   var r = Blockly.Lua.valueToCode(block, 'RED',
-                                     Blockly.Lua.ORDER_NONE) || 0;
+      Blockly.Lua.ORDER_NONE) || 0;
   var g = Blockly.Lua.valueToCode(block, 'GREEN',
-                                     Blockly.Lua.ORDER_NONE) || 0;
+      Blockly.Lua.ORDER_NONE) || 0;
   var b = Blockly.Lua.valueToCode(block, 'BLUE',
-                                     Blockly.Lua.ORDER_NONE) || 0;
+      Blockly.Lua.ORDER_NONE) || 0;
   var code = functionName + '(' + r + ', ' + g + ', ' + b + ')';
   return [code, Blockly.Lua.ORDER_HIGH];
 };

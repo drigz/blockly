@@ -28,6 +28,13 @@ goog.provide('Blockly.Lua.loops');
 
 goog.require('Blockly.Lua');
 
+
+/**
+ * This is the text used to implement a <pre>continue</pre>.
+ * It is also used to recognise <pre>continue</pre>s in generated code so that
+ * the appropriate label can be put at the end of the loop body.
+ * @const {string}
+ */
 Blockly.Lua.CONTINUE_STATEMENT = "goto continue\n";
 
 /**
@@ -39,13 +46,13 @@ Blockly.Lua.CONTINUE_STATEMENT = "goto continue\n";
  * @param {string} branch Generated code of the loop body
  * @return {string} Generated label or '' if unnecessary
  */
-Blockly.Lua.addContinueLabel = function (branch) {
+Blockly.Lua.addContinueLabel = function(branch) {
   if (branch.indexOf(Blockly.Lua.CONTINUE_STATEMENT) > -1) {
     return branch + Blockly.Lua.INDENT + "::continue::\n";
   } else {
     return branch;
   }
-}
+};
 
 Blockly.Lua['controls_repeat'] = function(block) {
   // Repeat n times (internal number).

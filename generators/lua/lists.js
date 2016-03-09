@@ -114,7 +114,7 @@ Blockly.Lua['lists_indexOf'] = function(block) {
   return [code, Blockly.Lua.ORDER_HIGH];
 };
 
-var getIndex_ = function(listname, where, at) {
+Blockly.Lua.lists.getIndex_ = function(listname, where, at) {
   if (where == 'FIRST') {
     return 1;
   } else if (where == 'FROM_END') {
@@ -128,10 +128,10 @@ var getIndex_ = function(listname, where, at) {
   }
 };
 
-var gensym_counter_ = 0;
+Blockly.Lua.lists.gensym_counter_ = 0;
 
-var gensym_ = function() {
-  return 'G' + gensym_counter_ ++;
+Blockly.Lua.lists.gensym_ = function() {
+  return 'G' + Blockly.Lua.lists.gensym_counter_ ++;
 };
 
 Blockly.Lua['lists_getIndex'] = function(block) {
@@ -143,6 +143,8 @@ Blockly.Lua['lists_getIndex'] = function(block) {
       Blockly.Lua.ORDER_ADDITIVE) || '1';
   var list = Blockly.Lua.valueToCode(block, 'VALUE',
       Blockly.Lua.ORDER_HIGH) || '({})';
+  var getIndex_ = Blockly.Lua.lists.getIndex_;
+  var gensym_ = Blockly.Lua.lists.gensym_;
 
   // If the list would not to be evaluated more than once (which is the
   // case for LAST, FROM_END, and RANDOM) and is non-trivial, make sure
@@ -285,7 +287,7 @@ Blockly.Lua['lists_getSublist'] = function(block) {
       Blockly.Lua.ORDER_ADDITIVE) || '1';
 
   var functionName = Blockly.Lua.provideFunction_(
-      'list_sublist_' + gensym_(),
+      'list_sublist_' + Blockly.Lua.lists.gensym_(),
       ['function ' + Blockly.Lua.FUNCTION_NAME_PLACEHOLDER_ + '(source)',
        '  local t = {}',
        '  local start = ' + getIndex_('source', where1, at1),
