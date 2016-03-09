@@ -213,6 +213,7 @@ Blockly.Lua['lists_setIndex'] = function(block) {
       Blockly.Lua.ORDER_ADDITIVE) || '1';
   var value = Blockly.Lua.valueToCode(block, 'TO',
       Blockly.Lua.ORDER_NONE) || 'None';
+  var getIndex_ = Blockly.Lua.lists.getIndex_;
 
   // If the list would need to be evaluated more than once (which is the
   // case for LAST, FROM_END, and RANDOM) and is non-trivial, make sure
@@ -285,6 +286,7 @@ Blockly.Lua['lists_getSublist'] = function(block) {
       Blockly.Lua.ORDER_ADDITIVE) || '1';
   var at2 = Blockly.Lua.valueToCode(block, 'AT2',
       Blockly.Lua.ORDER_ADDITIVE) || '1';
+  var getIndex_ = Blockly.Lua.lists.getIndex_;
 
   var functionName = Blockly.Lua.provideFunction_(
       'list_sublist_' + Blockly.Lua.lists.gensym_(),
