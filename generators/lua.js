@@ -71,7 +71,7 @@ Blockly.Lua.addReservedWords(
 
 /**
  * Order of operation ENUMs.
- * http://www.lua.org/manual/5.1/manual.html#2.5.6
+ * http://www.lua.org/manual/5.3/manual.html#3.4.8
  */
 Blockly.Lua.ORDER_ATOMIC = 0;          // literals
 // The next level was not explicit in documentation and inferred by Ellen.
