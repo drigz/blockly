@@ -84,7 +84,7 @@ Blockly.Lua.ORDER_CONCATENATION = 6;   // ..
 Blockly.Lua.ORDER_RELATIONAL = 7;      // < > <=  >= ~= ==
 Blockly.Lua.ORDER_AND = 8;             // and
 Blockly.Lua.ORDER_OR = 9;              // or
-Blockly.Lua.ORDER_NONE = 10;
+Blockly.Lua.ORDER_NONE = 99;
 
 /**
  * Initialise the database of variable names.
