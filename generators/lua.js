@@ -125,12 +125,14 @@ Blockly.Lua.finish = function(code) {
 
 /**
  * Naked values are top-level blocks with outputs that aren't plugged into
- * anything. In Lua, this doesn't need special handling.
+ * anything. In Lua, an expression is not a legal statement, so we must assign
+ * the value to the (conventionally ignored) _.
+ * http://lua-users.org/wiki/ExpressionsAsStatements
  * @param {string} line Line of generated code.
  * @return {string} Legal line of code.
  */
 Blockly.Lua.scrubNakedValue = function(line) {
-  return line + '\n';
+  return 'local _ = ' + line + '\n';
 };
 
 /**
