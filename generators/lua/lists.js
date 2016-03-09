@@ -313,7 +313,7 @@ Blockly.Lua['lists_split'] = function(block) {
     if (!value_input) {
       value_input = '\'\'';
     }
-    var functionName = Blockly.Lua.provideFunction_(
+    functionName = Blockly.Lua.provideFunction_(
         'list_string_split',
         ['function ' + Blockly.Lua.FUNCTION_NAME_PLACEHOLDER_ + '(input, delim)',
          '  local t = {}',
@@ -334,7 +334,7 @@ Blockly.Lua['lists_split'] = function(block) {
     if (!value_input) {
       value_input = '({})';
     }
-    var functionName = 'table.concat';
+    functionName = 'table.concat';
   } else {
     throw 'Unknown mode: ' + mode;
   }

@@ -37,13 +37,12 @@ Blockly.Lua['text'] = function(block) {
 
 Blockly.Lua['text_join'] = function(block) {
   // Create a string made up of any number of elements of any type.
-  var code;
   if (block.itemCount_ == 0) {
     return ['\'\'', Blockly.Lua.ORDER_ATOMIC];
   } else if (block.itemCount_ == 1) {
     var argument0 = Blockly.Lua.valueToCode(block, 'ADD0',
         Blockly.Lua.ORDER_NONE) || '\'\'';
-    code = argument0;
+    var code = argument0;
     return [code, Blockly.Lua.ORDER_HIGH];
   } else if (block.itemCount_ == 2) {
     var argument0 = Blockly.Lua.valueToCode(block, 'ADD0',
@@ -143,8 +142,6 @@ Blockly.Lua['text_charAt'] = function(block) {
     } else if (where == 'LAST') {
       var start = '-1';
     } else {
-      var at = Blockly.Lua.valueToCode(block, 'AT',
-          Blockly.Lua.ORDER_UNARY) || '1';
       if (where == 'FROM_START') {
         var start = at;
       } else if (where == 'FROM_END') {
