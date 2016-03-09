@@ -96,7 +96,8 @@ Blockly.Lua['text_indexOf'] = function(block) {
   if (block.getTitleValue('END') == 'FIRST') {
     var functionName = Blockly.Lua.provideFunction_(
         'firstIndexOf',
-        ['function ' + Blockly.Lua.FUNCTION_NAME_PLACEHOLDER_ + '(str, substr) ',
+        ['function ' + Blockly.Lua.FUNCTION_NAME_PLACEHOLDER_ +
+             '(str, substr) ',
          '  local i = string.find(str, substr, 1, true)',
          '  if i == nil then',
          '    return 0',
@@ -107,13 +108,15 @@ Blockly.Lua['text_indexOf'] = function(block) {
   } else {
     var functionName = Blockly.Lua.provideFunction_(
         'lastIndexOf',
-        ['function ' + Blockly.Lua.FUNCTION_NAME_PLACEHOLDER_ + '(str, substr)',
-         '  local i = string.find(string.reverse(str), string.reverse(substr), 1, true)',
+        ['function ' + Blockly.Lua.FUNCTION_NAME_PLACEHOLDER_ +
+             '(str, substr)',
+         '  local reversed = string.reverse(str)',
+         '  local i = string.find(reversed, reversed, 1, true)',
          '  if i then',
          '    return #str + 2 - i - #substr',
          '  end',
          '  return 0',
-         'end'])
+         'end']);
   }
   var code = functionName + '(' + str + ', ' + substr + ')';
   return [code, Blockly.Lua.ORDER_HIGH];
@@ -154,9 +157,10 @@ Blockly.Lua['text_charAt'] = function(block) {
       code = 'string.sub(' + text + ', ' + start + ', ' + start + ')';
     } else {
       // use function to avoid reevaluation
-      var functionname = blockly.lua.providefunction_(
+      var functionName = Blockly.Lua.provideFunction_(
           'text_char_at',
-          ['function ' + Blockly.Lua.FUNCTION_NAME_PLACEHOLDER_ + '(str, index)',
+          ['function ' + Blockly.Lua.FUNCTION_NAME_PLACEHOLDER_ +
+               '(str, index)',
            '  return string.sub(str, index, index)',
            'end']);
       code = functionName + '(' + text + ', ' + start + ')';
@@ -232,7 +236,7 @@ Blockly.Lua['text_changeCase'] = function(block) {
          '    end',
          '  end',
          '  return table.concat(buf)',
-         'end'])
+         'end']);
   }
   var code = functionName + '(' + argument0 + ')';
   return [code, Blockly.Lua.ORDER_HIGH];

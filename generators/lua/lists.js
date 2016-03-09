@@ -114,7 +114,15 @@ Blockly.Lua['lists_indexOf'] = function(block) {
   return [code, Blockly.Lua.ORDER_HIGH];
 };
 
-Blockly.Lua.lists.getIndex_ = function(listname, where, at) {
+/**
+ * Returns an expression calculating the index into a list.
+ * @private
+ * @param {string} listname Name of the list, used to calculate length.
+ * @param {string} where The method of indexing, selected by dropdown in Blockly
+ * @param {=string} opt_at The optional offset when indexing from start/end.
+ * @return {string} Index expression.
+ */
+Blockly.Lua.lists.getIndex_ = function(listname, where, opt_at) {
   if (where == 'FIRST') {
     return 1;
   } else if (where == 'FROM_END') {
@@ -128,10 +136,20 @@ Blockly.Lua.lists.getIndex_ = function(listname, where, at) {
   }
 };
 
+/**
+ * Counter for generating unique symbols.
+ * @private
+ * @type {number}
+ */
 Blockly.Lua.lists.gensym_counter_ = 0;
 
+/**
+ * Generate a unique symbol.
+ * @private
+ * @return {string} unique symbol, eg 'G123'
+ */
 Blockly.Lua.lists.gensym_ = function() {
-  return 'G' + Blockly.Lua.lists.gensym_counter_ ++;
+  return 'G' + Blockly.Lua.lists.gensym_counter_++;
 };
 
 Blockly.Lua['lists_getIndex'] = function(block) {
@@ -162,10 +180,10 @@ Blockly.Lua['lists_getIndex'] = function(block) {
     } else {
       // We need to create a procedure to avoid reevaluating values.
       if (mode == 'GET') {
-        // Note that getIndex_() ignores `at` when `where` == 'LAST' or 'RANDOM',
-        // so we only need one procedure for each of those 'where' values.
-        // The value for 'FROM_END' depends on `at`, so we will generate a
-        // unique procedure (name) each time.
+        // Note that getIndex_() ignores `at` when `where` == 'LAST' or
+        // 'RANDOM', so we only need one procedure for each of those 'where'
+        // values.  The value for 'FROM_END' depends on `at`, so we will
+        // generate a unique procedure (name) each time.
         var functionName = Blockly.Lua.provideFunction_(
             'list_get_' + where.toLowerCase() +
                 (where == 'FROM_END' ? '_' + gensym_() : ''),
@@ -185,7 +203,8 @@ Blockly.Lua['lists_getIndex'] = function(block) {
       return [code, Blockly.Lua.ORDER_HIGH];
     }
   } else {
-    // Either `list` is a simple variable, or we only need to refer to `list` once.
+    // Either `list` is a simple variable, or we only need to refer to `list`
+    // once.
     if (mode == 'GET') {
       var code = list + '[' + getIndex_(list, where, at) + ']';
       return [code, Blockly.Lua.ORDER_HIGH];
@@ -245,14 +264,14 @@ Blockly.Lua['lists_setIndex'] = function(block) {
         var functionName = Blockly.Lua.provideFunction_(
             'list_set_from_end',
             ['function ' + Blockly.Lua.FUNCTION_NAME_PLACEHOLDER_ +
-                '(t, index, val)',
+                 '(t, index, val)',
              '  t[#t + 1 - index] = val',
              'end']);
       } else {  // `mode` == 'INSERT'
         var functionName = Blockly.Lua.provideFunction_(
             'list_insert_from_end',
             ['function ' + Blockly.Lua.FUNCTION_NAME_PLACEHOLDER_ +
-                '(t, index, val)',
+                 '(t, index, val)',
              '  table.insert(t, #t + 1 - index, val)',
              'end']);
       }
@@ -315,7 +334,8 @@ Blockly.Lua['lists_split'] = function(block) {
     }
     functionName = Blockly.Lua.provideFunction_(
         'list_string_split',
-        ['function ' + Blockly.Lua.FUNCTION_NAME_PLACEHOLDER_ + '(input, delim)',
+        ['function ' + Blockly.Lua.FUNCTION_NAME_PLACEHOLDER_ +
+             '(input, delim)',
          '  local t = {}',
          '  local pos = 1',
          '  while true do',

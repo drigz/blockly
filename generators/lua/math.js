@@ -150,24 +150,24 @@ Blockly.Lua['math_number_property'] = function(block) {
     // Prime is a special case as it is not a one-liner test.
     var functionName = Blockly.Lua.provideFunction_(
         'math_isPrime',
-        [ 'function ' + Blockly.Lua.FUNCTION_NAME_PLACEHOLDER_ + '(n)',
-          '  -- https://en.wikipedia.org/wiki/Primality_test#Naive_methods',
-          '  if n == 2 or n == 3 then',
-          '    return true',
-          '  end',
-          '  -- False if n is NaN, negative, is 1, or not whole.',
-          '  -- And false if n is divisible by 2 or 3.',
-          '  if not(n > 1) or n % 1 ~= 0 or n % 2 == 0 or n % 3 == 0 then',
-          '    return false',
-          '  end',
-          '  -- Check all the numbers of form 6k +/- 1, up to sqrt(n).',
-          '  for x = 6, math.sqrt(n) + 1.5, 6 do',
-          '    if n % (x - 1) == 0 or n % (x + 1) == 0 then',
-          '      return false',
-          '    end',
-          '  end',
-          '  return true',
-          'end'])
+        ['function ' + Blockly.Lua.FUNCTION_NAME_PLACEHOLDER_ + '(n)',
+         '  -- https://en.wikipedia.org/wiki/Primality_test#Naive_methods',
+         '  if n == 2 or n == 3 then',
+         '    return true',
+         '  end',
+         '  -- False if n is NaN, negative, is 1, or not whole.',
+         '  -- And false if n is divisible by 2 or 3.',
+         '  if not(n > 1) or n % 1 ~= 0 or n % 2 == 0 or n % 3 == 0 then',
+         '    return false',
+         '  end',
+         '  -- Check all the numbers of form 6k +/- 1, up to sqrt(n).',
+         '  for x = 6, math.sqrt(n) + 1.5, 6 do',
+         '    if n % (x - 1) == 0 or n % (x + 1) == 0 then',
+         '      return false',
+         '    end',
+         '  end',
+         '  return true',
+         'end']);
     code = functionName + '(' + number_to_check + ')';
     return [code, Blockly.Lua.ORDER_HIGH];
   }
@@ -258,7 +258,7 @@ Blockly.Lua['math_on_list'] = function(block) {
            '    end',
            '  end',
            '  return result',
-           'end'])
+           'end']);
       break;
 
     case 'AVERAGE':
@@ -270,7 +270,7 @@ Blockly.Lua['math_on_list'] = function(block) {
            '    return 0',
            '  end',
            '  return ' + provideSum() + '(t) / #t',
-           'end'])
+           'end']);
       break;
 
     case 'MAX':
@@ -288,7 +288,7 @@ Blockly.Lua['math_on_list'] = function(block) {
            '    end',
            '  end',
            '  return result',
-           'end'])
+           'end']);
       break;
 
     case 'MEDIAN':
@@ -312,7 +312,7 @@ Blockly.Lua['math_on_list'] = function(block) {
            '  else',
            '    return temp[math.ceil(#temp/2)]',
            '  end',
-           'end'])
+           'end']);
       break;
 
     case 'MODE':
@@ -366,7 +366,7 @@ Blockly.Lua['math_on_list'] = function(block) {
            '  end',
            '  result = math.sqrt(total / (count-1))',
            '  return result',
-           'end'])
+           'end']);
       break;
 
     case 'RANDOM':
@@ -377,7 +377,7 @@ Blockly.Lua['math_on_list'] = function(block) {
            '    return nil',
            '  end',
            '  return t[math.random(#t)]',
-           'end'])
+           'end']);
       break;
 
     default:

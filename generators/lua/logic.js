@@ -60,8 +60,10 @@ Blockly.Lua['logic_compare'] = function(block) {
     'GTE': '>='
   };
   var operator = OPERATORS[block.getFieldValue('OP')];
-  var argument0 = Blockly.Lua.valueToCode(block, 'A', Blockly.Lua.ORDER_RELATIONAL) || '0';
-  var argument1 = Blockly.Lua.valueToCode(block, 'B', Blockly.Lua.ORDER_RELATIONAL) || '0';
+  var argument0 = Blockly.Lua.valueToCode(block, 'A',
+      Blockly.Lua.ORDER_RELATIONAL) || '0';
+  var argument1 = Blockly.Lua.valueToCode(block, 'B',
+      Blockly.Lua.ORDER_RELATIONAL) || '0';
   var code = argument0 + ' ' + operator + ' ' + argument1;
   return [code, Blockly.Lua.ORDER_RELATIONAL];
 };

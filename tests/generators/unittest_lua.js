@@ -77,7 +77,7 @@ Blockly.Lua['unittest_main'].defineAssert_ = function(block) {
   var functionName = Blockly.Lua.provideFunction_(
       'assertEquals',
       ['function ' + Blockly.Lua.FUNCTION_NAME_PLACEHOLDER_ +
-          '(actual, expected, message)',
+           '(actual, expected, message)',
        '  -- Asserts that a value equals another value.',
        '  assert(' + resultsVar + ' ~= nil, ' +
            '"Orphaned assert equals: " ..  message)',
@@ -97,7 +97,7 @@ Blockly.Lua['unittest_main'].defineAssert_ = function(block) {
        '    end',
        '    if lists_match then',
        '      table.insert(' + resultsVar +
-             ', {success=true, log="OK", title=message})',
+           ', {success=true, log="OK", title=message})',
        '      return',
        '    else',
        '      -- produce the non-matching strings for a human-readable error',
@@ -154,7 +154,8 @@ Blockly.Lua['unittest_fail'] = function(block) {
       'unittest_fail',
       ['function ' + Blockly.Lua.FUNCTION_NAME_PLACEHOLDER_ + '(message)',
        '  -- Always assert an error.',
-       '  assert(' + resultsVar + ' ~= nil, "Orphaned assert fail: " .. message)',
+       '  assert(' + resultsVar +
+           ' ~= nil, "Orphaned assert fail: " .. message)',
        '  table.insert(' + resultsVar +
            ', {success=false, log="Fail.", title=message})',
        'end']);

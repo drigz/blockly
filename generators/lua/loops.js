@@ -35,7 +35,7 @@ goog.require('Blockly.Lua');
  * the appropriate label can be put at the end of the loop body.
  * @const {string}
  */
-Blockly.Lua.CONTINUE_STATEMENT = "goto continue\n";
+Blockly.Lua.CONTINUE_STATEMENT = 'goto continue\n';
 
 /**
  * If the loop body contains a "goto continue" statement, add a continue label
@@ -48,7 +48,7 @@ Blockly.Lua.CONTINUE_STATEMENT = "goto continue\n";
  */
 Blockly.Lua.addContinueLabel = function(branch) {
   if (branch.indexOf(Blockly.Lua.CONTINUE_STATEMENT) > -1) {
-    return branch + Blockly.Lua.INDENT + "::continue::\n";
+    return branch + Blockly.Lua.INDENT + '::continue::\n';
   } else {
     return branch;
   }
@@ -135,8 +135,8 @@ Blockly.Lua['controls_for'] = function(block) {
     code += Blockly.Lua.INDENT + incValue + ' = -' + incValue + '\n';
     code += 'end\n';
   }
-  code += 'for ' + variable0 + ' = ' + startVar + ', ' + endVar
-                 + ', ' + incValue;
+  code += 'for ' + variable0 + ' = ' + startVar + ', ' + endVar +
+      ', ' + incValue;
   code += ' do\n' + branch + 'end\n';
   return code;
 };
