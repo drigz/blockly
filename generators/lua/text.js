@@ -110,8 +110,8 @@ Blockly.Lua['text_indexOf'] = function(block) {
         'lastIndexOf',
         ['function ' + Blockly.Lua.FUNCTION_NAME_PLACEHOLDER_ +
              '(str, substr)',
-         '  local reversed = string.reverse(str)',
-         '  local i = string.find(reversed, reversed, 1, true)',
+         '  local i = string.find(string.reverse(str), ' +
+             'string.reverse(substr), 1, true)',
          '  if i then',
          '    return #str + 2 - i - #substr',
          '  end',

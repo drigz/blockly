@@ -126,13 +126,13 @@ Blockly.Lua.lists.getIndex_ = function(listname, where, opt_at) {
   if (where == 'FIRST') {
     return 1;
   } else if (where == 'FROM_END') {
-    return '#' + listname + ' + 1 - ' + at;
+    return '#' + listname + ' + 1 - ' + opt_at;
   } else if (where == 'LAST') {
     return '#' + listname;
   } else if (where == 'RANDOM') {
     return 'math.random(#' + listname + ')';
   } else {
-    return at;
+    return opt_at;
   }
 };
 
